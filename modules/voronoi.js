@@ -5,17 +5,23 @@
 }(this, (function () { 'use strict';
 
   var Voronoi = function Voronoi(delaunay, points, pointsN) {
-    const cells = {v: [], c: [], b: []}; // voronoi cells: v = cell vertices, c = adjacent cells, b = near-border cell
+    const cells = [];//{v: [], c: [], b: []}; // voronoi cells: v = cell vertices, c = adjacent cells, b = near-border cell
     const vertices = {p: [], v: [], c: []}; // cells vertices: p = vertex coordinates, v = neighboring vertices, c = adjacent cells
     
     for (let e=0; e < delaunay.triangles.length; e++) {
 
       const p = delaunay.triangles[nextHalfedge(e)];
-      if (p < pointsN && !cells.c[p]) {
+      if (p < pointsN && !cells[p]) {
         const edges = edgesAroundPoint(e);
-        cells.v[p] = edges.map(e => triangleOfEdge(e));                              // cell: adjacent vertex
-        cells.c[p] = edges.map(e => delaunay.triangles[e]).filter(c => c < pointsN); // cell: adjacent valid cells
-        cells.b[p] = edges.length > cells.c[p].length ? 1 : 0;                       // cell: is border
+        cells[p] = new Cell(
+          p, //get ID
+          edges.map(e => triangleOfEdge(e)),
+          edges.map(e => delaunay.triangles[e]).filter(c => c < pointsN),
+          edges.length  //for detemining that it is a border cell
+        );
+        // cells.v[p] = edges.map(e => triangleOfEdge(e));                              // cell: adjacent vertex
+        // cells.c[p] = edges.map(e => delaunay.triangles[e]).filter(c => c < pointsN); // cell: adjacent valid cells
+        // cells.b[p] = edges.length > cells.c[p].length ? 1 : 0;                       // cell: is border
       }
 
       const t = triangleOfEdge(e);
@@ -25,7 +31,17 @@
         vertices.c[t] = pointsOfTriangle(t);            // vertex: adjacent cells
       }
     }
-    
+
+    cells.forEach(c => c.linkAjacentCells(cells));
+
+    function adjacentVertex(edges){
+      return edges.map(e => triangleOfEdge(e))
+    }
+
+    function adjacentValidCells(edges, triangles, pointsN){
+      return edges.map(e => delaunay.triangles[e]).filter(c => c < pointsN);
+    }
+
     function pointsOfTriangle(t) {
       return edgesOfTriangle(t).map(e => delaunay.triangles[e]);
     }  

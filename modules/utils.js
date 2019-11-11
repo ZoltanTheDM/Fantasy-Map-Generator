@@ -1,6 +1,80 @@
 // FMG helper functions
 "use strict";
 
+const ENUM = {
+  CELL_TYPE: {
+    COAST: 1,
+    COAST_WATER: -1,
+  },
+  HEIGHT: {
+    MAX: 100,
+    SEA_LEVEL: 20,
+    MIN: 0,
+  }
+};
+
+class Cell {
+  constructor(id, adjacentVertex, ajacentCells, edgesLength){
+    this.id = id;
+    this.v = adjacentVertex;
+    this.adjacentIDs = ajacentCells;
+    this.c = [];
+    //check if this is a border cell
+    this.b = edgesLength > this.c.length;
+    this.height = 0;
+    // this.feature;
+    // this.type;
+    // this.temperature;
+    // this.precipitation;
+  }
+
+  linkAjacentCells (cellList){
+    // console.log(this.adjacentIDs);
+    this.c = this.adjacentIDs.map(i => cellList[i]);
+  }
+}
+
+class Icons {
+  constructor(iconList = {}, density = 0){
+    this.density = density;
+    this.probability = [];
+
+    for(var item in iconList) {
+        if ( iconList.hasOwnProperty(item) ) { // Safety
+            for( var i=0; i<iconList[item]; i++ ) {
+                this.probability.push(item);
+            }
+        }
+    }
+  }
+}
+
+class Biome {
+  constructor(name, color, habitability, icons = new Icons(), cost = 50){
+    this.name = name;
+    this.color = color;
+    this.habitability = habitability;
+    this.icons = icons;
+    this.cost = cost;
+
+    this.resetStatistics();
+  }
+
+  resetStatistics(){
+    this.cells = 0;
+    this.area = 0;
+    this.rural = 0;
+    this.urban = 0;
+  }
+
+  addCell(cell, cells){
+    this.cells += 1;
+    this.area += cells.area[cell];
+    this.rural += cells.pop[cell];
+    if (cells.burg[cell]) this.urban += pack.burgs[cells.burg[cell]].population;
+  }
+}
+
 // add boundary points to pseudo-clip voronoi cells
 function getBoundaryPoints(width, height, spacing) {
   const offset = rn(-1 * spacing);

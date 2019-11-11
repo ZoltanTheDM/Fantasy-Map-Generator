@@ -9,7 +9,7 @@
   const generate = function() {
     console.time('generateHeightmap');
     cells = grid.cells, p = grid.points;
-    cells.h = new Uint8Array(grid.points.length);
+    // cells.h = new Uint8Array(grid.points.length);
 
     const input = document.getElementById("templateInput");
     if (!locked("template")) {
@@ -232,69 +232,82 @@
     }
   }
 
+  function findCell (rangeX, rangeY, check, limit = 50){
+    let cell;
+    do {
+      const x = getPointInRange(rangeX, graphWidth);
+      const y = getPointInRange(rangeY, graphHeight);
+      cell = cells[findGridCell(x, y)];
+      limit++;
+    } while (check(cell) && limit-- > 0)
+    return cell
+  }
+
   const addHill = function(count, height, rangeX, rangeY) {
     count = getNumberInRange(count);
     const power = getBlobPower();
     while (count >= 1 || Math.random() < count) {addOneHill(); count--;}
 
     function addOneHill() {
-      const change = new Uint8Array( cells.h.length);
-      let limit = 0, start;
       let h = lim(getNumberInRange(height));
 
-      do {
-        const x = getPointInRange(rangeX, graphWidth);
-        const y = getPointInRange(rangeY, graphHeight);
-        start = findGridCell(x, y);
-        limit++;
-      } while (cells.h[start] + h > 90 && limit < 50)
+      const start = findCell(rangeX, rangeY, c => {c.height + h <= 90});
 
-      change[start] = h;
+      start.change = h;
+      //TODO actually make this into a queue class
       const queue = [start];
       while (queue.length) {
-        const q = queue.shift();
+        const ele = queue.shift();
 
-        for (const c of cells.c[q]) {
-          if (change[c]) continue;
-          change[c] = change[q] ** power * (Math.random() * .2 + .9);
-          if (change[c] > 1) queue.push(c);
+        //check all nearby cells
+        for (const cell of ele.c) {
+          //check if cell has already changed
+          if (cell.change) continue;
+          //make a random change
+          cell.change = ele.change ** power * (Math.random() * .2 + .9);
+          //if the change was large enough, change nearby cells
+          if (cell.change > 1) queue.push(cell);
         }
       }
 
-      cells.h = cells.h.map((h, i) => lim(h + change[i]));
+      //TODO limited this to only changed cells
+      cells.forEach((cell) => {
+        cell.height = lim(cell.height + cell.change);
+        delete cell.change;
+      });
     }
 
   }
 
   const addPit = function(count, height, rangeX, rangeY) {
     count = getNumberInRange(count);
+    const power = getBlobPower();
     while (count >= 1 || Math.random() < count) {addOnePit(); count--;}
 
+    //TODO addOnePit and addOneHill are very similar can be converted into
+    //a reused function
     function addOnePit() {
-      const used = new Uint8Array(cells.h.length);
-      let limit = 0, start;
       let h = lim(getNumberInRange(height));
 
-      do {
-        const x = getPointInRange(rangeX, graphWidth);
-        const y = getPointInRange(rangeY, graphHeight);
-        start = findGridCell(x, y);
-        limit++;
-      } while (cells.h[start] < 20 && limit < 50)
+      let start = findCell(rangeX, rangeY, c => {c.height >= ENUM.HEIGHT.SEA_LEVEL});
 
       const queue = [start];
       while (queue.length) {
-        const q = queue.shift();
-        h = h ** getBlobPower() * (Math.random() * .2 + .9);
-        if (h < 1) return;
+        const ele = queue.shift();
+        h = h ** power * (Math.random() * .2 + .9);
+        //If delta would be insignificant they are done
+        //TODO make it not a break
+        if (h < 1) break;
 
-        cells.c[q].forEach(function(c, i) {
-          if (used[c]) return;
-          cells.h[c] = lim(cells.h[c] - h * (Math.random() * .2 + .9));
-          used[c] = 1;
+        ele.c.forEach(function(c, i) {
+          if (c.done) return;
+          c.height = lim(c.height - h * (Math.random() * .2 + .9));
+          c.done = true;
           queue.push(c);
         });
       }
+
+      cells.forEach(c => {delete c.done;});
     }
   }
 
@@ -304,13 +317,13 @@
     while (count >= 1 || Math.random() < count) {addOneRange(); count--;}
 
     function addOneRange() {
-      const used = new Uint8Array(cells.h.length);
       let h = lim(getNumberInRange(height));
 
       // find start and end points
       const startX = getPointInRange(rangeX, graphWidth);
       const startY = getPointInRange(rangeY, graphHeight);
-      
+
+      //TODO there is no height protections here
       let dist = 0, limit = 0, endX, endY;
       do {
         endX = Math.random() * graphWidth * .8 + graphWidth * .1;
@@ -319,24 +332,24 @@
         limit++;
       } while ((dist < graphWidth / 8 || dist > graphWidth / 3) && limit < 50)
 
-      let range = getRange(findGridCell(startX, startY), findGridCell(endX, endY));
+      let range = getRange(cells[findGridCell(startX, startY)], cells[findGridCell(endX, endY)]);
 
       // get main ridge
       function getRange(cur, end) {
         const range = [cur];
-        used[cur] = 1;
+        cur.done = true;
 
-        while (cur !== end) {
+        while (cur != end) {
           let min = Infinity;
-          cells.c[cur].forEach(function(e) {
-            if (used[e]) return;
-            let diff = (p[end][0] - p[e][0]) ** 2 + (p[end][1] - p[e][1]) ** 2;
+          cur.c.forEach(function(e) {
+            if (e.done) return;
+            let diff = (p[end.id][0] - p[e.id][0]) ** 2 + (p[end.id][1] - p[e.id][1]) ** 2;
             if (Math.random() > .85) diff = diff / 2;
             if (diff < min) {min = diff; cur = e;}
           });
           if (min === Infinity) return range;
           range.push(cur);
-          used[cur] = 1;
+          cur.done = true;
         }
 
         return range;
@@ -347,25 +360,27 @@
       while (queue.length) {
         const frontier = queue.slice();
         queue = [], i++;
-        frontier.forEach(i => {
-          cells.h[i] = lim(cells.h[i] + h * (Math.random() * .3 + .85));
+        frontier.forEach(cell => {
+          cell.height = lim(cell.height + h * (Math.random() * .3 + .85));
         });
         h = h ** power - 1;
         if (h < 2) break;
         frontier.forEach(f => {
-          cells.c[f].forEach(i => {
-            if (!used[i]) {queue.push(i); used[i] = 1;}
+          f.c.forEach(i => {
+            if (!i.done) {queue.push(i); i.done = true;}
           });
         });
       }
+
+      cells.forEach(cell => {delete cell.done});
 
       // generate prominences
       range.forEach((cur, d) => {
         if (d%6 !== 0) return;
         for (const l of d3.range(i)) {
-          const min = cells.c[cur][d3.scan(cells.c[cur], (a, b) => cells.h[a] - cells.h[b])]; // downhill cell
+          const min = cur.c[d3.scan(cur.c, (a, b) => a.height - b.height)]; // downhill cell
           //debug.append("circle").attr("cx", p[min][0]).attr("cy", p[min][1]).attr("r", 1);
-          cells.h[min] = (cells.h[cur] * 2 + cells.h[min]) / 3;
+          min.height = (cur.height * 2 + min.height) / 3;
           cur = min;
         }
       });
@@ -373,13 +388,15 @@
     }
   }
 
+  //TODO addTrough has many similarities to addRange, These should be
+  //amended into a single function
   const addTrough = function(count, height, rangeX, rangeY) {
     count = getNumberInRange(count);
     const power = getLinePower();
     while (count >= 1 || Math.random() < count) {addOneTrough(); count--;}
 
     function addOneTrough() {
-      const used = new Uint8Array(cells.h.length);
+      // const used = new Uint8Array(cells.length);
       let h = lim(getNumberInRange(height));
 
       // find start and end points
@@ -387,9 +404,9 @@
       do {
         startX = getPointInRange(rangeX, graphWidth);
         startY = getPointInRange(rangeY, graphHeight);
-        start = findGridCell(startX, startY);
+        start = cells[findGridCell(startX, startY)];
         limit++;
-      } while (cells.h[start] < 20 && limit < 50)
+      } while (start.height < ENUM.HEIGHT.SEA_LEVEL && limit < 50)
 
       limit = 0;
       do {
@@ -399,24 +416,24 @@
         limit++;
       } while ((dist < graphWidth / 8 || dist > graphWidth / 2) && limit < 50)
 
-      let range = getRange(start, findGridCell(endX, endY));  
+      let range = getRange(start, cells[findGridCell(endX, endY)]);
 
       // get main ridge
       function getRange(cur, end) {
         const range = [cur];
-        used[cur] = 1;
+        cur.done = true;
 
-        while (cur !== end) {
+        while (cur != end) {
           let min = Infinity;
-          cells.c[cur].forEach(function(e) {
-            if (used[e]) return;
-            let diff = (p[end][0] - p[e][0]) ** 2 + (p[end][1] - p[e][1]) ** 2;
+          cur.c.forEach(function(e) {
+            if (e.done) return;
+            let diff = (p[end.id][0] - p[e.id][0]) ** 2 + (p[end.id][1] - p[e.id][1]) ** 2;
             if (Math.random() > .8) diff = diff / 2;
             if (diff < min) {min = diff; cur = e;}
           });
           if (min === Infinity) return range;
           range.push(cur);
-          used[cur] = 1;
+          cur.done = true;
         }
 
         return range;
@@ -428,24 +445,26 @@
         const frontier = queue.slice();
         queue = [], i++;
         frontier.forEach(i => {
-          cells.h[i] = lim(cells.h[i] - h * (Math.random() * .3 + .85));
+          i.height = lim(i.height - h * (Math.random() * .3 + .85));
         });
         h = h ** power - 1;
         if (h < 2) break;
         frontier.forEach(f => {
-          cells.c[f].forEach(i => {
-            if (!used[i]) {queue.push(i); used[i] = 1;}
+          f.c.forEach(i => {
+            if (!i.done) {queue.push(i); i.done = true;}
           });
         });
       }
+
+      cells.forEach(cell => {delete cell.done;});
 
       // generate prominences
       range.forEach((cur, d) => {
         if (d%6 !== 0) return;
         for (const l of d3.range(i)) {
-          const min = cells.c[cur][d3.scan(cells.c[cur], (a, b) => cells.h[a] - cells.h[b])]; // downhill cell
+          const min = cur.c[d3.scan(cur.c, (a, b) => a.height - b.height)]; // downhill cell
           //debug.append("circle").attr("cx", p[min][0]).attr("cy", p[min][1]).attr("r", 1);
-          cells.h[min] = (cells.h[cur] * 2 + cells.h[min]) / 3;
+          min.height = (cur.height * 2 + min.height) / 3;
           cur = min;
         }
       });
@@ -456,24 +475,24 @@
   const addStrait = function(width, direction = "vertical") {
     width = Math.min(getNumberInRange(width), grid.cellsX/3);
     if (width < 1 && Math.random() < width) return;
-    const used = new Uint8Array(cells.h.length);
+    // const used = new Uint8Array(cells.length);
     const vert = direction === "vertical";
     const startX = vert ? Math.floor(Math.random() * graphWidth * .4 + graphWidth * .3) : 5;
     const startY = vert ? 5 : Math.floor(Math.random() * graphHeight * .4 + graphHeight * .3);
     const endX = vert ? Math.floor((graphWidth - startX) - (graphWidth * .1) + (Math.random() * graphWidth * .2)) : graphWidth - 5;
     const endY = vert ? graphHeight - 5 : Math.floor((graphHeight - startY) - (graphHeight * .1) + (Math.random() * graphHeight * .2));
 
-    const start = findGridCell(startX, startY), end = findGridCell(endX, endY);
+    const start = cells[findGridCell(startX, startY)], end = cells[findGridCell(endX, endY)];
     let range = getRange(start, end);
     const query = [];
 
     function getRange(cur, end) {
       const range = [];
       
-      while (cur !== end) {
+      while (cur != end) {
         let min = Infinity;
-        cells.c[cur].forEach(function(e) {
-          let diff = (p[end][0] - p[e][0]) ** 2 + (p[end][1] - p[e][1]) ** 2;
+        cur.c.forEach(function(e) {
+          let diff = (p[end.id][0] - p[e.id][0]) ** 2 + (p[end.id][1] - p[e.id][1]) ** 2;
           if (Math.random() > 0.8) diff = diff / 2;
           if (diff < min) {min = diff; cur = e;}
         });
@@ -488,38 +507,43 @@
     while (width > 0) {
       const exp = .9 - step * width;
       range.forEach(function(r) {
-        cells.c[r].forEach(function(e) {
-          if (used[e]) return;
-          used[e] = 1;
+        r.c.forEach(function(e) {
+          if (e.done) return;
+          e.done = true;
           query.push(e);
-          cells.h[e] **= exp;
-          if (cells.h[e] > 100) cells.h[e] = 5;
+          e.height **= exp;
+          if (e.height > 100) e.height = 5;
         });
 
         range = query.slice();
       });
       width--;
     }
+
+    cells.forEach(cell => {delete cell.done;});
   }
 
   const modify = function(range, add, mult, power) {
-    const min = range === "land" ? 20 : range === "all" ? 0 : +range.split("-")[0];
+    const min = range === "land" ? ENUM.HEIGHT.SEA_LEVEL : range === "all" ? 0 : +range.split("-")[0];
     const max = range === "land" || range === "all" ? 100 : +range.split("-")[1];
-    grid.cells.h = grid.cells.h.map(h => h >= min && h <= max ? mod(h) : h);
+    grid.cells.forEach(cell => {
+      if(cell.height >= min && cell.height <= max){
+        cell.height = mod(cell.height);
+      }
+    });
 
     function mod(v) {
-      if (add) v = min === 20 ? Math.max(v + add, 20) : v + add;
-      if (mult !== 1) v = min === 20 ? (v-20) * mult + 20 : v * mult;
-      if (power) v = min === 20 ? (v-20) ** power + 20 : v ** power;
+      if (add) v = min === ENUM.HEIGHT.SEA_LEVEL ? Math.max(v + add, ENUM.HEIGHT.SEA_LEVEL) : v + add;
+      if (mult !== 1) v = min === ENUM.HEIGHT.SEA_LEVEL ? (v-ENUM.HEIGHT.SEA_LEVEL) * mult + ENUM.HEIGHT.SEA_LEVEL : v * mult;
+      if (power) v = min === ENUM.HEIGHT.SEA_LEVEL ? (v-ENUM.HEIGHT.SEA_LEVEL) ** power + ENUM.HEIGHT.SEA_LEVEL : v ** power;
       return lim(v);
     }
   }
 
   const smooth = function(fr = 2) {
-    cells.h = cells.h.map((h, i) => {
-      const a = [h];
-      cells.c[i].forEach(c => a.push(cells.h[c]));
-      return lim((h * (fr-1) + d3.mean(a)) / fr);
+    cells.forEach(cell => {
+      cell.height = lim((cell.height * (fr-1) +
+        d3.mean(cell.c.map(c => c.height).concat([cell.height]))) / fr);
     });
   }
 

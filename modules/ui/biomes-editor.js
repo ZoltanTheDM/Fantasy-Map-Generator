@@ -211,18 +211,20 @@ function editBiomes() {
   }
 
   function addCustomBiome() {
-    const b = biomesData.biomeList, i = b.length;
-    b.push(new Biome("Custom", getRandomColor(), 50))
-    b[i].id = i; //don't forget the ID!
+    const bl = biomesData.biomeList, i = bl.length;
+    bl.push(new Biome("Custom", getRandomColor(), 50))
+    bl[i].id = i; //don't forget the ID!
+
+    const b = bl[i];
 
     const unit = areaUnit.value === "square" ? " " + distanceUnitInput.value + "²" : " " + areaUnit.value;
-    const line = `<div class="states biomes" data-id="${b[i].id}" data-name="${b[i].name}" data-habitability=${b[i].habitability} data-cells=0 data-area=0 data-population=0 data-color=${b[i].color}>
-      <svg data-tip="Biomes fill style. Click to change" width=".9em" height=".9em" style="margin-bottom:-1px"><rect x="0" y="0" width="100%" height="100%" fill="${b[i].color}" class="zoneFill"></svg>
-      <input data-tip="Biome name. Click and type to change" class="biomeName" value="${b[i].name}" autocorrect="off" spellcheck="false">
+    const line = `<div class="states biomes" data-id="${b.id}" data-name="${b.name}" data-habitability=${b.habitability} data-cells=0 data-area=0 data-population=0 data-color=${b.color}>
+      <svg data-tip="Biomes fill style. Click to change" width=".9em" height=".9em" style="margin-bottom:-1px"><rect x="0" y="0" width="100%" height="100%" fill="${b.color}" class="zoneFill"></svg>
+      <input data-tip="Biome name. Click and type to change" class="biomeName" value="${b.name}" autocorrect="off" spellcheck="false">
       <span data-tip="Biome habitability percent" class="hide">%</span>
-      <input data-tip="Biome habitability percent. Click and set new value to change" type="number" min=0 max=9999 step=1 class="biomeHabitability hide" value=${b[i].habitability}>
+      <input data-tip="Biome habitability percent. Click and set new value to change" type="number" min=0 max=9999 step=1 class="biomeHabitability hide" value=${b.habitability}>
       <span data-tip="Cells count" class="icon-check-empty hide"></span>
-      <div data-tip="Cells count" class="biomeCells hide">${b[i].cells}</div>
+      <div data-tip="Cells count" class="biomeCells hide">${b.cells}</div>
       <span data-tip="Biome area" style="padding-right: 4px" class="icon-map-o hide"></span>
       <div data-tip="Biome area" class="biomeArea hide">0 ${unit}</div>
       <span data-tip="Total population: 0" class="icon-male hide"></span>

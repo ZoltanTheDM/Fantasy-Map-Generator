@@ -96,47 +96,6 @@ fogging.append("rect").attr("x", 0).attr("y", 0).attr("width", "100%").attr("hei
 scaleBar.on("mousemove", () => tip("Click to open Units Editor"));
 legend.on("mousemove", () => tip("Drag to change the position. Click to hide the legend")).on("click", () => clearLegend());
 
-class Icons {
-  constructor(iconList = {}, density = 0){
-    this.density = density;
-    this.probability = [];
-
-    for(var item in iconList) {
-        if ( iconList.hasOwnProperty(item) ) { // Safety
-            for( var i=0; i<iconList[item]; i++ ) {
-                this.probability.push(item);
-            }
-        }
-    }
-  }
-}
-
-class Biome {
-  constructor(name, color, habitability, icons = new Icons(), cost = 50){
-    this.name = name;
-    this.color = color;
-    this.habitability = habitability;
-    this.icons = icons;
-    this.cost = cost;
-
-    this.resetStatistics();
-  }
-
-  resetStatistics(){
-    this.cells = 0;
-    this.area = 0;
-    this.rural = 0;
-    this.urban = 0;
-  }
-
-  addCell(cell, cells){
-    this.cells += 1;
-    this.area += cells.area[cell];
-    this.rural += cells.pop[cell];
-    if (cells.burg[cell]) this.urban += pack.burgs[cells.burg[cell]].population;
-  }
-}
-
 // main data variables
 let grid = {}; // initial grapg based on jittered square grid and data
 let pack = {}; // packed graph and data
@@ -268,8 +227,8 @@ function focusOn() {
 
   const c = +params.get("cell");
   if (c) {
-    x = pack.cells.p[c][0];
-    y = pack.cells.p[c][1];
+    x = pack.cells[c].p[0];
+    y = pack.cells[c].p[1];
   }
 
   const b = +params.get("burg");
@@ -635,7 +594,7 @@ function calculateVoronoi(graph, points) {
   console.time("calculateVoronoi");
   const voronoi = Voronoi(delaunay, allPoints, n);
   graph.cells = voronoi.cells;
-  graph.cells.i = n < 65535 ? Uint16Array.from(d3.range(n)) : Uint32Array.from(d3.range(n)); // array of indexes
+  // graph.cells.i = n < 65535 ? Uint16Array.from(d3.range(n)) : Uint32Array.from(d3.range(n)); // array of indexes
   graph.vertices = voronoi.vertices;
   console.timeEnd("calculateVoronoi");
 }
@@ -645,35 +604,41 @@ function markFeatures() {
   console.time("markFeatures");
   Math.seedrandom(seed); // restart Math.random() to get the same result on heightmap edit in Erase mode
   const cells = grid.cells, heights = grid.cells.h;
-  cells.f = new Uint16Array(cells.i.length); // cell feature number
-  cells.t = new Int8Array(cells.i.length); // cell type: 1 = land coast; -1 = water near coast;
+  // cells.f = new Uint16Array(cells.i.length); // cell feature number
+  // cells.t = new Int8Array(cells.i.length); // cell type: 1 = land coast; -1 = water near coast;
+  //feature 0 is a bogus feature
   grid.features = [0];
 
-  for (let i=1, queue=[0]; queue[0] !== -1; i++) {
-    cells.f[queue[0]] = i; // feature number
-    const land = heights[queue[0]] >= 20;
+  for (let i=1, queue=[cells[0]]; queue[0] !== undefined; i++) {
+    const cell = queue[0];
+    cell.feature = i;
+    // cells.f[queue[0]] = i; // feature number
+    const land = cell.height >= ENUM.HEIGHT.SEA_LEVEL;
     let border = false; // true if feature touches map border
 
     while (queue.length) {
-      const q = queue.pop();
-      if (cells.b[q]) border = true;
-      cells.c[q].forEach(function(e) {
-        const eLand = heights[e] >= 20;
+      const q = queue.pop()
+      if (q.b) border = true;
+      if (typeof(q.c) === "undefined"){
+        console.log(q);
+      }
+      q.c.forEach(function(e) {
+        const eLand = e.height >= ENUM.HEIGHT.SEA_LEVEL;
         //if (eLand) cells.t[e] = 2;
-        if (land === eLand && cells.f[e] === 0) {
-          cells.f[e] = i;
+        if (land === eLand && !e.feature) {
+          e.feature = i;
           queue.push(e);
         }
         if (land && !eLand) {
-          cells.t[q] = 1; 
-          cells.t[e] = -1;
+          q.type = ENUM.CELL_TYPE.COAST; 
+          e.type = ENUM.CELL_TYPE.COAST_WATER;
         }
       });
     }
     const type = land ? "island" : border ? "ocean" : "lake";
     grid.features.push({i, land, border, type});
 
-    queue[0] = cells.f.findIndex(f => !f); // find unmarked cell
+    queue[0] = cells[cells.findIndex(f => !f.feature)]; // find unmarked cell
   }
 
   console.timeEnd("markFeatures");
