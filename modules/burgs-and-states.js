@@ -292,10 +292,11 @@
     burgs.filter(b => b.i && !b.removed).forEach(b => b.state = cells.state[b.cell]); // assign state to burgs
 
     function getBiomeCost(b, biome, type) {
+      const bio = biomesData.biomeList[biome];
       if (b === biome) return 10; // tiny penalty for native biome
-      if (type === "Hunting") return biomesData.cost[biome] * 2; // non-native biome penalty for hunters
-      if (type === "Nomadic" && biome > 4 && biome < 10) return biomesData.cost[biome] * 3; // forest biome penalty for nomads
-      return biomesData.cost[biome]; // general non-native biome penalty
+      if (type === "Hunting") return bio.cost * 2; // non-native biome penalty for hunters
+      if (type === "Nomadic" && biome > 4 && biome < 10) return bio.cost * 3; // forest biome penalty for nomads
+      return bio.cost; // general non-native biome penalty
     }
 
     function getHeightCost(f, h, type) {
