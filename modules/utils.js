@@ -3,8 +3,10 @@
 
 const ENUM = {
   CELL_TYPE: {
+    INLAND: 2,
     COAST: 1,
     COAST_WATER: -1,
+    DEEP_OCEAN: -2,
   },
   HEIGHT: {
     MAX: 100,
@@ -16,13 +18,14 @@ const ENUM = {
 class Cell {
   constructor(id, adjacentVertex, ajacentCells, edgesLength){
     this.id = id;
+    this.x = grid.points[id][0];
+    this.y = grid.points[id][1];
     this.v = adjacentVertex;
     this.adjacentIDs = ajacentCells;
     this.c = [];
     //check if this is a border cell
     this.b = edgesLength > this.c.length;
     this.height = 0;
-    // this.feature;
     // this.type;
     this.temperature = 0;
     this.precipitation = 0;
@@ -31,6 +34,17 @@ class Cell {
   linkAjacentCells (cellList){
     this.c = this.adjacentIDs.map(i => cellList[i]);
     delete this.adjacentIDs;
+  }
+
+  getFromGrid (cellStub){
+    this.g = cellStub.g;
+    this.height = cellStub.height;
+    this.area = Math.abs(d3.polygonArea(getPackPolygon(this.id)));
+    this.harbor = 0;
+    this.feature = 0;
+    this.flux = 0;
+    this.river = 0;
+    this.confluences = 0;
   }
 }
 
@@ -164,7 +178,7 @@ function findAll(x, y, radius) {
 
 // get polygon points for packed cells knowing cell id
 function getPackPolygon(i) {
-  return pack.cells.v[i].map(v => pack.vertices.p[v]);
+  return pack.cells[i].v.map(v => pack.vertices.p[v]);
 }
 
 // get polygon points for initial cells knowing cell id

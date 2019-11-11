@@ -594,7 +594,6 @@ function calculateVoronoi(graph, points) {
   console.time("calculateVoronoi");
   const voronoi = Voronoi(delaunay, allPoints, n);
   graph.cells = voronoi.cells;
-  // graph.cells.i = n < 65535 ? Uint16Array.from(d3.range(n)) : Uint32Array.from(d3.range(n)); // array of indexes
   graph.vertices = voronoi.vertices;
   console.timeEnd("calculateVoronoi");
 }
@@ -603,16 +602,13 @@ function calculateVoronoi(graph, points) {
 function markFeatures() {
   console.time("markFeatures");
   Math.seedrandom(seed); // restart Math.random() to get the same result on heightmap edit in Erase mode
-  const cells = grid.cells, heights = grid.cells.h;
-  // cells.f = new Uint16Array(cells.i.length); // cell feature number
-  // cells.t = new Int8Array(cells.i.length); // cell type: 1 = land coast; -1 = water near coast;
+  const cells = grid.cells;
   //feature 0 is a bogus feature
   grid.features = [0];
 
   for (let i=1, queue=[cells[0]]; queue[0] !== undefined; i++) {
     const cell = queue[0];
     cell.feature = i;
-    // cells.f[queue[0]] = i; // feature number
     const land = cell.height >= ENUM.HEIGHT.SEA_LEVEL;
     let border = false; // true if feature touches map border
 
@@ -855,48 +851,44 @@ function generatePrecipitation() {
 // recalculate Voronoi Graph to pack cells
 function reGraph() {
   console.time("reGraph");
-  let cells = grid.cells, points = grid.points, features = grid.features;
-  const newCells = {p:[], g:[], h:[], t:[], f:[], r:[], biome:[]}; // to store new data
+  const cells = grid.cells, points = grid.points, features = grid.features;
+  const newCells = []; // to store new data
   const spacing2 = grid.spacing ** 2;
 
-  for (const i of cells.i) {
-    const height = cells.h[i];
-    const type = cells.t[i];
-    if (height < 20 && type !== -1 && type !== -2) continue; // exclude all deep ocean points
-    if (type === -2 && (i%4=== 0 || features[cells.f[i]].type === "lake")) continue; // exclude non-coastal lake points
-    const x = points[i][0], y = points[i][1];
+  for (const cell of cells) {
+    const height = cell.height;
+    const type = cell.type;
+    if (height < ENUM.HEIGHT.SEA_LEVEL && type !== ENUM.CELL_TYPE.COAST_WATER && type !== ENUM.CELL_TYPE.DEEP_WATER) continue; // exclude all deep ocean points
+    //QUESTION: why exclude every 4th point?
+    if (type === ENUM.CELL_TYPE.DEEP_WATER && (cell.id%4=== 0 || features[cell.feature].type === "lake")) continue; // exclude non-coastal lake points
+    const x = cell.x, y = cell.y;
 
     addNewPoint(x, y); // add point to array
     // add additional points for cells along coast
-    if (type === 1 || type === -1) {
-      if (cells.b[i]) continue; // not for near-border cells
-      cells.c[i].forEach(function(e) {
-        if (i > e) return;
-        if (cells.t[e] === type) {
-          const dist2 = (y - points[e][1]) ** 2 + (x - points[e][0]) ** 2;
+    if (type === ENUM.CELL_TYPE.COAST || type === ENUM.CELL_TYPE.COAST_WATER) {
+      if (cell.b) continue; // not for near-border cells
+      cell.c.forEach(function(e) {
+        if (i.id > e.id) return;
+        if (e.type === type) {
+          const dist2 = (y - e.y) ** 2 + (x - e.x) ** 2;
           if (dist2 < spacing2) return; // too close to each other
-          const x1 = rn((x + points[e][0]) / 2, 1);
-          const y1 = rn((y + points[e][1]) / 2, 1);
+          const x1 = rn((x + e.x) / 2, 1);
+          const y1 = rn((y + e.y) / 2, 1);
           addNewPoint(x1, y1);
         }
       });
     }
 
     function addNewPoint(x, y) {
-      newCells.p.push([x, y]);
-      newCells.g.push(i);
-      newCells.h.push(height);
+      newCells.push({x, y, g:cell.id, height});
     }
   }
 
-  calculateVoronoi(pack, newCells.p);
-  cells = pack.cells;
-  cells.p = newCells.p; // points coordinates [x, y]
-  cells.g = grid.cells.i.length < 65535 ? Uint16Array.from(newCells.g) : Uint32Array.from(newCells.g); // reference to initial grid cell
-  cells.q = d3.quadtree(cells.p.map((p, d) => [p[0], p[1], d])); // points quadtree for fast search
-  cells.h = new Uint8Array(newCells.h); // heights
-  cells.area = new Uint16Array(cells.i.length); // cell area
-  cells.i.forEach(i => cells.area[i] = Math.abs(d3.polygonArea(getPackPolygon(i))));
+
+  calculateVoronoi(pack, newCells.map(p => [p.x, p.y]));
+  const pcells = pack.cells;
+  pcells.forEach((c, i) => c.getFromGrid(newCells[i]))
+  pcells.q = d3.quadtree(pcells.map((p, d) => [p.x, p.y, d])); // points quadtree for fast search
 
   console.timeEnd("reGraph");
 }
@@ -905,22 +897,23 @@ function reGraph() {
 function drawCoastline() {
   console.time('drawCoastline');
   reMarkFeatures();
-  const cells = pack.cells, vertices = pack.vertices, n = cells.i.length, features = pack.features;
+  const cells = pack.cells, vertices = pack.vertices, n = cells.length, features = pack.features;
   const used = new Uint8Array(features.length); // store conneted features
   const largestLand = d3.scan(features.map(f => f.land ? f.cells : 0), (a, b) => b - a);
   const landMask = defs.select("#land");
   const waterMask = defs.select("#water");
   lineGen.curve(d3.curveBasisClosed);
 
-  for (const i of cells.i) {
-    const startFromEdge = !i && cells.h[i] >= 20;
-    if (!startFromEdge && cells.t[i] !== -1 && cells.t[i] !== 1) continue; // non-edge cell
-    const f = cells.f[i];
+  for (const cell of cells) {
+    //QUESTION why skip the first cell?
+    const startFromEdge = !cell.id && cell.height >= ENUM.HEIGHT.SEA_LEVEL;
+    if (!startFromEdge && cell.type !== ENUM.CELL_TYPE.COAST_WATER && cell.type !== ENUM.CELL_TYPE.COAST) continue; // non-edge cell
+    const f = cell.feature;
     if (used[f]) continue; // already connected
     if (features[f].type === "ocean") continue; // ocean cell
 
     const type = features[f].type === "lake" ? 1 : -1; // type value to search for
-    const start = findStart(i, type);
+    const start = findStart(cell, type);
     if (start === -1) continue; // cannot start here
     let vchain = connectVertices(start, type);
     if (features[f].type === "lake") relax(vchain, 1.2);
@@ -956,11 +949,11 @@ function drawCoastline() {
   }
 
   // find cell vertex to start path detection
-  function findStart(i, t) {
-    if (t === -1 && cells.b[i]) return cells.v[i].find(v => vertices.c[v].some(c => c >= n)); // map border cell
-    const filtered = cells.c[i].filter(c => cells.t[c] === t);
-    const index = cells.c[i].indexOf(d3.min(filtered));
-    return index === -1 ? index : cells.v[i][index];
+  function findStart(cell, t) {
+    if (t === -1 && cell.b) return cell.v.find(v => vertices.c[v].some(c => c >= n)); // map border cell
+    const filtered = cell.c.filter(c => cell.type === t);
+    const index = cell.c.indexOf(d3.min(filtered));
+    return index === -1 ? index : cell.v[index];
   }
 
   // connect vertices to chain
@@ -972,9 +965,9 @@ function drawCoastline() {
       chain.push(current); // add current vertex to sequence
       const c = vertices.c[current] // cells adjacent to vertex
       const v = vertices.v[current] // neighboring vertices
-      const c0 = c[0] >= n || cells.t[c[0]] === t;
-      const c1 = c[1] >= n || cells.t[c[1]] === t;
-      const c2 = c[2] >= n || cells.t[c[2]] === t;
+      const c0 = c[0] >= n || cells[c[0]].type === t;
+      const c1 = c[1] >= n || cells[c[1]].type === t;
+      const c2 = c[2] >= n || cells[c[2]].type === t;
       if (v[0] !== prev && c0 !== c1) current = v[0]; else
       if (v[1] !== prev && c1 !== c2) current = v[1]; else
       if (v[2] !== prev && c0 !== c2) current = v[2];
@@ -1009,34 +1002,34 @@ function drawCoastline() {
 function reMarkFeatures() {
   console.time("reMarkFeatures");
   const cells = pack.cells, features = pack.features = [0];
-  cells.f = new Uint16Array(cells.i.length); // cell feature number
-  cells.t = new Int16Array(cells.i.length); // cell type: 1 = land along coast; -1 = water along coast;
-  cells.haven = new Uint16Array(cells.i.length); // cell haven (opposite water cell);
-  cells.harbor = new Uint16Array(cells.i.length); // cell harbor (number of adjacent water cells);
+  // cells.f = new Uint16Array(cells.i.length); // cell feature number
+  // cells.t = new Int16Array(cells.i.length); // cell type: 1 = land along coast; -1 = water along coast;
+  // cells.haven = new Uint16Array(cells.i.length); // cell haven (opposite water cell);
+  // cells.harbor = new Uint16Array(cells.i.length); // cell harbor (number of adjacent water cells);
 
-  for (let i=1, queue=[0]; queue[0] !== -1; i++) {
+  for (let i=1, queue=[cells[0]]; queue[0] !== undefined; i++) {
     const start = queue[0]; // first cell
-    cells.f[start] = i; // assign feature number
-    const land = cells.h[start] >= 20;
+    start.feature = i; // assign feature number
+    const land = start.height >= ENUM.HEIGHT.SEA_LEVEL;
     let border = false; // true if feature touches map border
     let cellNumber = 1; // to count cells number in a feature
 
     while (queue.length) {
       const q = queue.pop();
-      if (cells.b[q]) border = true;
-      cells.c[q].forEach(function(e) {
-        const eLand = cells.h[e] >= 20;
+      if (q.b) border = true;
+      q.c.forEach(function(e) {
+        const eLand = e.height >= ENUM.HEIGHT.SEA_LEVEL;
         if (land && !eLand) {
-          cells.t[q] = 1;
-          cells.t[e] = -1;
-          cells.harbor[q]++;
-          if (!cells.haven[q]) cells.haven[q] = e;
+          q.type = ENUM.CELL_TYPE.COAST;
+          e.type = ENUM.CELL_TYPE.COAST_WATER;
+          q.harbor++;
+          if (!q.haven) q.haven = e;
         } else if (land && eLand) {
-          if (!cells.t[e] && cells.t[q] === 1) cells.t[e] = 2;
-          else if (!cells.t[q] && cells.t[e] === 1) cells.t[q] = 2;
+          if (!e.type && q.type === ENUM.CELL_TYPE.COAST) e.type = ENUM.CELL_TYPE.INLAND;
+          else if (!q.type && e.type === ENUM.CELL_TYPE.COAST) q.type = ENUM.CELL_TYPE.INLAND;
         }
-        if (land === eLand && cells.f[e] === 0) {
-          cells.f[e] = i;
+        if (land === eLand && e.feature === 0) {
+          e.feature = i;
           queue.push(e);
           cellNumber++;
         }
@@ -1049,23 +1042,23 @@ function reMarkFeatures() {
     else if (type === "ocean") group = "ocean"; 
     else if (type === "island") group = defineIslandGroup(start, cellNumber);
     features.push({i, land, border, type, cells: cellNumber, firstCell: start, group});
-    queue[0] = cells.f.findIndex(f => !f); // find unmarked cell
+    queue[0] = cells.find(f => !f.feature); // find unmarked cell
   }
 
   function defineLakeGroup(cell, number) {
-    const temp = grid.cells.temp[cells.g[cell]];
+    const temp = cell.g.temperature;
     if (temp > 24) return "salt";
     if (temp < -3) return "frozen";
-    const height = d3.max(cells.c[cell].map(c => cells.h[c]));
+    const height = d3.max(cell.c.map(c => c.height));
     if (height > 69 && number < 3 && cell%5 === 0) return "sinkhole";
     if (height > 69 && number < 10 && cell%5 === 0) return "lava";
     return "freshwater";
   }
 
   function defineIslandGroup(cell, number) {
-    if (cell && features[cells.f[cell-1]].type === "lake") return "lake_island";
-    if (number > grid.cells.i.length / 10) return "continent";
-    if (number > grid.cells.i.length / 1000) return "island";
+    if (cell.id && features[cells[cell.id-1].feature].type === "lake") return "lake_island";
+    if (number > grid.cells.length / 10) return "continent";
+    if (number > grid.cells.length / 1000) return "island";
     return "isle";
   }
 
@@ -1077,11 +1070,11 @@ function elevateLakes() {
   if (templateInput.value === "Atoll") return; // no need for Atolls
   console.time('elevateLakes');
   const cells = pack.cells, features = pack.features;
-  const maxCells = cells.i.length / 100; // size limit; let big lakes be closed (endorheic)
-  cells.i.forEach(i => {
-    if (cells.h[i] >= 20) return;
-    if (features[cells.f[i]].group !== "freshwater" || features[cells.f[i]].cells > maxCells) return;
-    cells.h[i] = 20;
+  const maxCells = cells.length / 100; // size limit; let big lakes be closed (endorheic)
+  cells.forEach(cell => {
+    if (cell.height >= ENUM.HEIGHT.SEA_LEVEL) return;
+    if (features[cell.feature].group !== "freshwater" || features[cell.feature].cells > maxCells) return;
+    cell.height = ENUM.HEIGHT.SEA_LEVEL;
     //debug.append("circle").attr("cx", cells.p[i][0]).attr("cy", cells.p[i][1]).attr("r", .5).attr("fill", "blue");
   });
 

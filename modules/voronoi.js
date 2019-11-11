@@ -19,9 +19,6 @@
           edges.map(e => delaunay.triangles[e]).filter(c => c < pointsN),
           edges.length  //for detemining that it is a border cell
         );
-        // cells.v[p] = edges.map(e => triangleOfEdge(e));                              // cell: adjacent vertex
-        // cells.c[p] = edges.map(e => delaunay.triangles[e]).filter(c => c < pointsN); // cell: adjacent valid cells
-        // cells.b[p] = edges.length > cells.c[p].length ? 1 : 0;                       // cell: is border
       }
 
       const t = triangleOfEdge(e);

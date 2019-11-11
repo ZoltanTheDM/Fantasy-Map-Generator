@@ -11,94 +11,97 @@
 
     // build distance field in cells from water (cells.t)
     void function markupLand() {
-      const q = t => cells.i.filter(i => cells.t[i] === t);
+      const q = t => cells.filter(cell => cell.type === t);
       for (let t = 2, queue = q(t); queue.length; t++, queue = q(t)) {
-        queue.forEach(i => cells.c[i].forEach(c => {
-          if (!cells.t[c]) cells.t[c] = t+1;
+        queue.forEach(cell => cell.c.forEach(c => {
+          if (!c.type) c.type = t+1;
         }));
       }
     }()
 
     // height with added t value to make map less depressed
-    const h = Array.from(cells.h)
-      .map((h, i) => h < 20 || cells.t[i] < 1 ? h : h + cells.t[i] / 100)
-      .map((h, i) => h < 20 || cells.t[i] < 1 ? h : h + d3.mean(cells.c[i].map(c => cells.t[c])) / 10000);
+    //TODO improve me
+    const h = cells
+      .map((c, i) => c.height < ENUM.HEIGHT.SEA_LEVEL || c.type < 1 ? c.height : c.height + c.type / 100)
+      .map((h, i) => h < ENUM.HEIGHT.SEA_LEVEL || cells[i].type < 1 ? h : h + d3.mean(cells[i].c.map(c => c.type)) / 10000);
+
+    console.log(h);
 
     resolveDepressions(h);
     features.forEach(f => {delete f.river; delete f.flux;});
 
     const riversData = []; // rivers data
-    cells.fl = new Uint16Array(cells.i.length); // water flux array
-    cells.r = new Uint16Array(cells.i.length); // rivers array
-    cells.conf = new Uint8Array(cells.i.length); // confluences array
+    // cells.fl = new Uint16Array(cells.i.length); // water flux array
+    // cells.r = new Uint16Array(cells.i.length); // rivers array
+    // cells.conf = new Uint8Array(cells.i.length); // confluences array
     let riverNext = 1; // first river id is 1, not 0
 
     void function drainWater() {
-      const land = cells.i.filter(i => h[i] >= 20).sort((a,b) => h[b] - h[a]);
-      land.forEach(function(i) {
-        cells.fl[i] += grid.cells.prec[cells.g[i]]; // flux from precipitation
-        const x = p[i][0], y = p[i][1];
+      const land = cells.filter(i => i.height >= ENUM.HEIGHT.SEA_LEVEL).sort((a,b) => b.height - a.height);
+      land.forEach(function(cell) {
+        cell.flux += cell.g.precipitation; // flux from precipitation
+        const x = cell.x, y = cell.y;
 
         // near-border cell: pour out of the screen
-        if (cells.b[i]) {
-          if (cells.r[i]) {
+        if (cell.b) {
+          if (cell.river) {
             const to = [];
             const min = Math.min(y, graphHeight - y, x, graphWidth - x);
             if (min === y) {to[0] = x; to[1] = 0;} else 
             if (min === graphHeight - y) {to[0] = x; to[1] = graphHeight;} else 
             if (min === x) {to[0] = 0; to[1] = y;} else 
             if (min === graphWidth - x) {to[0] = graphWidth; to[1] = y;}
-            riversData.push({river: cells.r[i], cell: i, x: to[0], y: to[1]});
+            riversData.push({river: cell.river, cell: cell.id, x: to[0], y: to[1]});
           }
           return;
         }
 
         //const min = cells.c[i][d3.scan(cells.c[i], (a, b) => h[a] - h[b])]; // downhill cell
-        let min = cells.c[i][d3.scan(cells.c[i], (a, b) => h[a] - h[b])]; // downhill cell
+        let min = cell.c[d3.scan(cell.c, (a, b) => h[a.id] - h[b.id])]; // downhill cell
 
         // allow only one river can flow thought a lake
-        const cf = features[cells.f[i]]; // current cell feature
-        if (cf.river && cf.river !== cells.r[i]) {
-          cells.fl[i] = 0; 
+        const cf = features[cell.feature]; // current cell feature
+        if (cf.river && cf.river !== cell.river) {
+          cell.flux = 0;
         }
-    
-        if (cells.fl[i] < 30) {
-          if (h[min] >= 20) cells.fl[min] += cells.fl[i];
+
+        if (cell.flux < 30) {
+          if (h[min].id >= ENUM.HEIGHT.SEA_LEVEL) min.flux += cell.flux;
           return; // flux is too small to operate as river
         }
-    
+
         // Proclaim a new river
-        if (!cells.r[i]) {
-          cells.r[i] = riverNext;
-          riversData.push({river: riverNext, cell: i, x, y});
+        if (!cell.river) {
+          cell.river = riverNext;
+          riversData.push({river: riverNext, cell: cell, x, y});
           riverNext++;
         }
 
-        if (cells.r[min]) { // downhill cell already has river assigned
-          if (cells.fl[min] < cells.fl[i]) {
-            cells.conf[min] = cells.fl[min]; // mark confluence
-            if (h[min] >= 20) riversData.find(r => r.river === cells.r[min]).parent = cells.r[i]; // min river is a tributary of current river
-            cells.r[min] = cells.r[i]; // re-assign river if downhill part has less flux
+        if (min.river) { // downhill cell already has river assigned
+          if (min.flux < cell.flux) {
+            min.confluence = min.flux; // mark confluence
+            if (h[min.id] >= ENUM.HEIGHT.SEA_LEVEL) riversData.find(r => r.river === min.river).parent = cell.river; // min river is a tributary of current river
+            min.river = cell.river; // re-assign river if downhill part has less flux
           } else {
-            cells.conf[min] += cells.fl[i]; // mark confluence
-            if (h[min] >= 20) riversData.find(r => r.river === cells.r[i]).parent = cells.r[min]; // current river is a tributary of min river
+            min.confluence += cell.flux; // mark confluence
+            if (h[min.id] >= ENUM.HEIGHT.SEA_LEVEL) riversData.find(r => r.river === cell.river).parent = min.river; // current river is a tributary of min river
           }
-        } else cells.r[min] = cells.r[i]; // assign the river to the downhill cell
+        } else min.river = cell.river; // assign the river to the downhill cell
 
-        const nx = p[min][0], ny = p[min][1];
-        if (h[min] < 20) {
+        const nx = min.x, ny = min.y;
+        if (h[min.id] < ENUM.HEIGHT.SEA_LEVEL) {
           // pour water to the sea haven
-          riversData.push({river: cells.r[i], cell: cells.haven[i], x: nx, y: ny});
+          riversData.push({river: cell.river, cell: cell.haven, x: nx, y: ny});
         } else {
-          const mf = features[cells.f[min]]; // feature of min cell
+          const mf = features[min.feature]; // feature of min cell
           if (mf.type === "lake") {
-            if (!mf.river || cells.fl[i] > mf.flux) {
-              mf.river = cells.r[i]; // pour water to temporaly elevated lake
-              mf.flux = cells.fl[i]; // entering flux
+            if (!mf.river || cell.flux > mf.flux) {
+              mf.river = cell.river; // pour water to temporaly elevated lake
+              mf.flux = cells.flux; // entering flux
             }
           }
-          cells.fl[min] += cells.fl[i]; // propagate flux
-          riversData.push({river: cells.r[i], cell: min, x: nx, y: ny}); // add next River segment
+          min.flux += cell.flux; // propagate flux
+          riversData.push({river: cell.river, cell: min, x: nx, y: ny}); // add next River segment
         }
 
       });
@@ -121,7 +124,7 @@
           pack.rivers.push({i:r, parent, length, source:riverSegments[0].cell, mouth:last(riverSegments).cell});
         } else {
           // remove too short rivers
-          riverSegments.filter(s => cells.r[s.cell] === r).forEach(s => cells.r[s.cell] = 0);
+          riverSegments.filter(s => s.cell.river === r).forEach(s => s.cell.river = 0);
         }
       }
 
@@ -138,17 +141,17 @@
   // depression filling algorithm (for a correct water flux modeling)
   const resolveDepressions = function(h) {
     const cells = pack.cells;
-    const land = cells.i.filter(i => h[i] >= 20 && h[i] < 100 && !cells.b[i]); // exclude near-border cells
-    land.sort((a,b) => h[b] - h[a]); // highest cells go first
+    const land = cells.filter((cell, i) => h[i] >= ENUM.HEIGHT.SEA_LEVEL && h[i] < ENUM.HEIGHT.MAX && !cell.b); // exclude near-border cells
+    land.sort((a,b) => b.height - a.height); // highest cells go first
     let depressed = false;
 
-    for (let l = 0, depression = Infinity; depression && l < 100; l++) {
+    for (let l = 0, depression = Infinity; depression && l < ENUM.HEIGHT.MAX; l++) {
       depression = 0;
-      for (const i of land) {
-        const minHeight = d3.min(cells.c[i].map(c => h[c]));
-        if (minHeight === 100) continue; // already max height
-        if (h[i] <= minHeight) {
-          h[i] = minHeight + 1;
+      for (const cell of land) {
+        const minHeight = d3.min(cell.c.map(c => h[c.id]));
+        if (minHeight === ENUM.HEIGHT.MAX) continue; // already max height
+        if (h[cell.id] <= minHeight) {
+          h[cell.id] = minHeight + 1;
           depression++;
           depressed = true;
         }
@@ -165,7 +168,7 @@
   
     for (let s = 0; s < segments.length; s++) {
       const sX = segments[s].x, sY = segments[s].y; // segment start coordinates
-      const c = pack.cells.conf[segments[s].cell] || 0; // if segment is river confluence
+      const c = segments[s].cell.confluence || 0; // if segment is river confluence
       riverEnhanced.push([sX, sY, c]);
   
       if (s+1 === segments.length) break; // do not enhance last segment
