@@ -880,7 +880,7 @@ function reGraph() {
     }
 
     function addNewPoint(x, y) {
-      newCells.push({x, y, g:cell.id, height});
+      newCells.push({x, y, g:cell, height});
     }
   }
 
@@ -1002,10 +1002,6 @@ function drawCoastline() {
 function reMarkFeatures() {
   console.time("reMarkFeatures");
   const cells = pack.cells, features = pack.features = [0];
-  // cells.f = new Uint16Array(cells.i.length); // cell feature number
-  // cells.t = new Int16Array(cells.i.length); // cell type: 1 = land along coast; -1 = water along coast;
-  // cells.haven = new Uint16Array(cells.i.length); // cell haven (opposite water cell);
-  // cells.harbor = new Uint16Array(cells.i.length); // cell harbor (number of adjacent water cells);
 
   for (let i=1, queue=[cells[0]]; queue[0] !== undefined; i++) {
     const start = queue[0]; // first cell
@@ -1085,17 +1081,17 @@ function elevateLakes() {
 function defineBiomes() {
   console.time("defineBiomes");
   const cells = pack.cells, f = pack.features;
-  cells.biome = new Uint8Array(cells.i.length); // biomes array
+  let x = 0;
 
-  for (const i of cells.i) {
-    if (f[cells.f[i]].group === "freshwater") cells.h[i] = 19; // de-elevate lakes
-    if (cells.h[i] < 20) continue; // water cells have biome 0
-    let moist = grid.cells.prec[cells.g[i]];
-    if (cells.r[i]) moist += Math.max(cells.fl[i] / 20, 2);
-    const n = cells.c[i].filter(isLand).map(c => grid.cells.prec[cells.g[c]]).concat([moist]);
+  for (const cell of cells) {
+    if (f[cell.feature].group === "freshwater") cell.height = ENUM.HEIGHT.SEA_LEVEL - 1; // de-elevate lakes
+    if (cell.height < ENUM.HEIGHT.SEA_LEVEL) continue; // water cells have biome 0
+    let moist = cell.g.precipitation;
+    if (cell.river) moist += Math.max(cell.flux / 20, 2);
+    const n = cell.c.filter(c => c.isLand()).map(c => c.g.precipitation).concat([moist]);
     moist = rn(4 + d3.mean(n));
-    const temp = grid.cells.temp[cells.g[i]]; // flux from precipitation
-    cells.biome[i] = getBiomeId(moist, temp, cells.h[i]);
+    const temp = cell.g.temperature; // flux from precipitation
+    cell.biome = getBiomeId(moist, temp, cell.height);
   }
 
   console.timeEnd("defineBiomes");
@@ -1105,7 +1101,7 @@ function getBiomeId(moisture, temperature, height) {
   if (temperature < -5) return 11; // permafrost biome
   if (moisture > 40 && height < 25 || moisture > 24 && height > 24) return 12; // wetland biome
   const m = Math.min(moisture / 5 | 0, 4); // moisture band from 0 to 4
-  const t = Math.min(Math.max(20 - temperature, 0), 25); // temperature band from 0 to 25
+  const t = Math.min(Math.max(20 - rn(temperature), 0), 25); // temperature band from 0 to 25
   return biomesData.biomesMartix[m][t];
 }
 
@@ -1113,35 +1109,37 @@ function getBiomeId(moisture, temperature, height) {
 function rankCells() {
   console.time('rankCells');
   const cells = pack.cells, f = pack.features;
-  cells.s = new Int16Array(cells.i.length); // cell suitability array
-  cells.pop = new Float32Array(cells.i.length); // cell population array
 
-  const flMean = d3.median(cells.fl.filter(f => f)), flMax = d3.max(cells.fl) + d3.max(cells.conf); // to normalize flux
-  const areaMean = d3.mean(cells.area); // to adjust population by cell area
+  const flMean = d3.median(cells.filter(f => f.flux).map(f =>f.flux)), flMax = d3.max(cells.map(f =>f.flux)) + d3.max(cells.map(f =>f.confluence)); // to normalize flux
+  const areaMean = d3.mean(cells.map(f =>f.area)); // to adjust population by cell area
 
-  for (const i of cells.i) {
-    let s = +biomesData.biomeList[cells.biome[i]].habitability; // base suitability derived from biome habitability
+  for (const cell of cells) {
+  // for (const i of cells.i) {
+    if (biomesData.biomeList[cell.biome] === undefined){
+      console.log(cell, cell.biome, biomesData.biomeList)
+    }
+    let s = +biomesData.biomeList[cell.biome].habitability; // base suitability derived from biome habitability
     if (!s) continue; // uninhabitable biomes has 0 suitability
-    s += normalize(cells.fl[i] + cells.conf[i], flMean, flMax) * 250; // big rivers and confluences are valued
-    s -= (cells.h[i] - 50) / 5; // low elevation is valued, high is not;
+    s += normalize(cell.flux + cell.confluence, flMean, flMax) * 250; // big rivers and confluences are valued
+    s -= (cell.height - 50) / 5; // low elevation is valued, high is not;
 
-    if (cells.t[i] === 1) {
-      if (cells.r[i]) s += 15; // estuary is valued
-      const type = f[cells.f[cells.haven[i]]].type;
-      const group = f[cells.f[cells.haven[i]]].group;
+    if (cell.type === ENUM.CELL_TYPE.COAST) {
+      if (cell.river) s += 15; // estuary is valued
+      const type = f[cell.haven.feature].type;
+      const group = f[cell.haven.feature].group;
       if (type === "lake") {
         // lake coast is valued
         if (group === "freshwater") s += 30;
         else if (group !== "lava") s += 10;
       } else {
         s += 5; // ocean coast is valued
-        if (cells.harbor[i] === 1) s += 20; // safe sea harbor is valued
+        if (cell.harbor === 1) s += 20; // safe sea harbor is valued
       }
     }
 
-    cells.s[i] = s / 5; // general population rate
+    cell.suitability = s / 5; // general population rate
     // cell rural population is suitability adjusted by cell area
-    cells.pop[i] = cells.s[i] > 0 ? cells.s[i] * cells.area[i] / areaMean : 0;
+    cell.population = cell.suitability > 0 ? cell.suitability * cell.area / areaMean : 0;
   }
 
   console.timeEnd('rankCells');

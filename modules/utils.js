@@ -45,6 +45,15 @@ class Cell {
     this.flux = 0;
     this.river = 0;
     this.confluences = 0;
+    this.biome = 0;
+  }
+
+  isLand(){
+    return this.height >= ENUM.HEIGHT.SEA_LEVEL;
+  }
+
+  isWater(){
+    return this.height < ENUM.HEIGHT.SEA_LEVEL;
   }
 }
 
@@ -246,16 +255,6 @@ function* poissonDiscSampler(x0, y0, x1, y1, r, k = 3) {
     const r = queue.pop();
     if (i < queue.length) queue[i] = r;
   }
-}
-
-// filter land cells
-function isLand(i) {
-  return pack.cells.h[i] >= 20;
-}
-
-// filter water cells
-function isWater(i) {
-  return pack.cells.h[i] < 20;
 }
 
 // convert RGB color string to HEX without #
