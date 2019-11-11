@@ -11,21 +11,20 @@
     if (outline === "none") return;
     console.time("drawOceanLayers");
 
-    cells = grid.cells, pointsN = grid.cells.i.length, vertices = grid.vertices;
+    cells = grid.cells, pointsN = grid.cells.length, vertices = grid.vertices;
     const limits = outline === "random" ? randomizeOutline() : outline.split(",").map(s => +s);
     markupOcean(limits);
 
     const chains = [];
     const opacity = rn(0.4 / limits.length, 2);
-    used = new Uint8Array(pointsN); // to detect already passed cells
 
-    for (const i of cells.i) {
-      const t = cells.t[i];
+    for (const cell of cells) {
+      const t = cell.type;
       if (t > 0) continue;
-      if (used[i] || !limits.includes(t)) continue;
-      const start = findStart(i, t);
+      if (cell.done || !limits.includes(t)) continue;
+      const start = findStart(cell, t);
       if (!start) continue;
-      used[i] = 1;
+      cell.done = true;
       const chain = connectVertices(start, t); // vertices chain to form a path
       const relaxation = 1 + t * -2; // select only n-th point
       const relaxed = chain.filter((v, i) => i % relaxation === 0 || vertices.c[v].some(c => c >= pointsN));
@@ -40,9 +39,12 @@
 
     // find eligible cell vertex to start path detection
     function findStart(i, t) {
-      if (cells.b[i]) return cells.v[i].find(v => vertices.c[v].some(c => c >= pointsN)); // map border cell
-      return cells.v[i][cells.c[i].findIndex(c => cells.t[c] < t || !cells.t[c])];
+      if (i.b) return i.v.find(v => vertices.c[v].some(c => c >= pointsN)); // map border cell
+      return i.v[i.c.findIndex(c => c.type < t || !c.type)];
     }
+
+    //cleanup
+    cells.forEach(c => {delete c.done;});
 
     console.timeEnd("drawOceanLayers");
   }
@@ -58,11 +60,11 @@
   }
 
   function markupOcean(limits) {
-    // Define ocean cells type based on distance form land
+    // Define ocean cells type based on distance from land
     for (let t = -2; t >= limits[0]-1; t--) {
       for (let i = 0; i < pointsN; i++) {
-        if (cells.t[i] !== t+1) continue;
-        cells.c[i].forEach(function(e) {if (!cells.t[e]) cells.t[e] = t;});
+        if (cells[i].type !== t+1) continue;
+        cells[i].c.forEach(function(e) {if (!e.type) e.type = t;});
       }
     }
   }
@@ -74,11 +76,11 @@
       const prev = chain[chain.length - 1]; // previous vertex in chain
       chain.push(current); // add current vertex to sequence
       const c = vertices.c[current]; // cells adjacent to vertex
-      c.filter(c => cells.t[c] === t).forEach(c => used[c] = 1);
+      c.filter(c => c.type === t).forEach(c => c.done = true);
       const v = vertices.v[current]; // neighboring vertices
-      const c0 = !cells.t[c[0]] || cells.t[c[0]] === t-1;
-      const c1 = !cells.t[c[1]] || cells.t[c[1]] === t-1;
-      const c2 = !cells.t[c[2]] || cells.t[c[2]] === t-1;
+      const c0 = !c[0].type || c[0].type === t-1;
+      const c1 = !c[1].type || c[1].type === t-1;
+      const c2 = !c[2].type || c[2].type === t-1;
       if (v[0] !== undefined && v[0] !== prev && c0 !== c1) current = v[0];
       else if (v[1] !== undefined && v[1] !== prev && c1 !== c2) current = v[1];
       else if (v[2] !== undefined && v[2] !== prev && c0 !== c2) current = v[2];

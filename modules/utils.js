@@ -24,13 +24,13 @@ class Cell {
     this.height = 0;
     // this.feature;
     // this.type;
-    // this.temperature;
-    // this.precipitation;
+    this.temperature = 0;
+    this.precipitation = 0;
   }
 
   linkAjacentCells (cellList){
-    // console.log(this.adjacentIDs);
     this.c = this.adjacentIDs.map(i => cellList[i]);
+    delete this.adjacentIDs;
   }
 }
 

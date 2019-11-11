@@ -657,16 +657,16 @@ function openNearSeaLakes() {
   for (let t = 0, removed = true; t < 5 && removed; t++) {
     removed = false;
 
-    for (const i of cells.i) {
-      const lake = cells.f[i];
+    for (const cell of cells) {
+      const lake = cell.feature;
       if (features[lake].type !== "lake") continue; // not a lake cell
 
       check_neighbours:
-      for (const c of cells.c[i]) {
-        if (cells.t[c] !== 1 || cells.h[c] > limit) continue; // water cannot brake this
+      for (const c of cell.c) {
+        if (c.type !== ENUM.CELL_TYPE.COAST || c.height > limit) continue; // water cannot brake this
 
-        for (const n of cells.c[c]) {
-          const ocean = cells.f[n];
+        for (const n of c.c) {
+          const ocean = n.feature;
           if (features[ocean].type !== "ocean") continue; // not an ocean
           removed = removeLake(c, lake, ocean);
           break check_neighbours;
@@ -677,11 +677,11 @@ function openNearSeaLakes() {
   }
 
   function removeLake(treshold, lake, ocean) {
-    cells.h[treshold] = 19;
-    cells.t[treshold] = -1;
-    cells.f[treshold] = ocean;
-    cells.c[treshold].forEach(function(c) {
-      if (cells.h[c] >= 20) cells.t[c] = 1; // mark as coastline
+    treshold.height = 19;
+    treshold.type = ENUM.CELL_TYPE.COAST_WATER;
+    treshold.feature = ocean;
+    treshold.c.forEach(function(c) {
+      if (c.height >= ENUM.HEIGHT.SEA_LEVEL) c.type = ENUM.CELL_TYPE.COAST; // mark as coastline
     });
     features[lake].type = "ocean"; // mark former lake as ocean
     return true;
@@ -707,18 +707,17 @@ function calculateMapCoordinates() {
 function calculateTemperatures() {
   console.time('calculateTemperatures');
   const cells = grid.cells;
-  cells.temp = new Int8Array(cells.i.length); // temperature array
 
   const tEq = +temperatureEquatorInput.value;
   const tPole = +temperaturePoleInput.value;
   const tDelta = tEq - tPole;
 
-  d3.range(0, cells.i.length, grid.cellsX).forEach(function(r) {
+  d3.range(0, cells.length, grid.cellsX).forEach(function(r) {
     const y = grid.points[r][1];
     const lat = Math.abs(mapCoordinates.latN - y / graphHeight * mapCoordinates.latT);
     const initTemp = tEq - lat / 90 * tDelta;
     for (let i = r; i < r+grid.cellsX; i++) {
-      cells.temp[i] = initTemp - convertToFriendly(cells.h[i]);
+      cells[i].temperature = initTemp - convertToFriendly(cells[i].height);
     }
   });
 
@@ -738,7 +737,7 @@ function generatePrecipitation() {
   console.time('generatePrecipitation');
   prec.selectAll("*").remove();
   const cells = grid.cells;
-  cells.prec = new Uint8Array(cells.i.length); // precipitation array
+  // cells.prec = new Uint8Array(cells.i.length); // precipitation array
   const modifier = precInput.value / 100; // user's input
   const cellsX = grid.cellsX, cellsY = grid.cellsY;
   let westerly = [], easterly = [], southerly = 0, northerly = 0;
@@ -754,8 +753,8 @@ function generatePrecipitation() {
   }
   const lalitudeModifier = [4,2,2,2,1,1,2,2,2,2,3,3,2,2,1,1,1,0.5]; // by 5d step
 
-  // difine wind directions based on cells latitude and prevailing winds there
-  d3.range(0, cells.i.length, cellsX).forEach(function(c, i) {
+  // define wind directions based on cells latitude and prevailing winds there
+  d3.range(0, cells.length, cellsX).forEach(function(c, i) {
     const lat = mapCoordinates.latN - i / cellsY * mapCoordinates.latT;
     const band = (Math.abs(lat) - 1) / 5 | 0;
     const latMod = lalitudeModifier[band];
@@ -780,32 +779,36 @@ function generatePrecipitation() {
     const bandS = (Math.abs(mapCoordinates.latS) - 1) / 5 | 0;
     const latModS = mapCoordinates.latT > 60 ? d3.mean(lalitudeModifier) : lalitudeModifier[bandS];
     const maxPrecS = southerly / vertT * 60 * modifier * latModS;
-    passWind(d3.range(cells.i.length - cellsX, cells.i.length, 1), maxPrecS, -cellsX, cellsY);
+    passWind(d3.range(cells.length - cellsX, cells.length, 1), maxPrecS, -cellsX, cellsY);
   }
 
   function passWind(source, maxPrec, next, steps) {
     const maxPrecInit = maxPrec;
     for (let first of source) {
-      if (first[0]) {maxPrec = Math.min(maxPrecInit * first[1], 255); first = first[0];}
-      let humidity = maxPrec - cells.h[first]; // initial water amount
-      if (humidity <= 0) continue; // if first cell in row is too elevated cosdired wind dry
-      for (let s = 0, current = first; s < steps; s++, current += next) {
+      if (!first[0]) continue;
+
+      maxPrec = Math.min(maxPrecInit * first[1], 255);
+      const value = first[0];
+
+      let humidity = maxPrec - cells[value].height; // initial water amount
+      if (humidity <= 0) continue; // if value cell in row is too elevated cosdired wind dry
+      for (let s = 0, current = value; s < steps; s++, current += next) {
         // no flux on permafrost
-        if (cells.temp[current] < -5) continue;
+        if (cells[current].temperature < -5) continue;
         // water cell
-        if (cells.h[current] < 20) {
-          if (cells.h[current+next] >= 20) {
-            cells.prec[current+next] += Math.max(humidity / rand(10, 20), 1); // coastal precipitation
+        if (cells[current].height < ENUM.HEIGHT.SEA_LEVEL) {
+          if (cells[current+next].height >= ENUM.HEIGHT.SEA_LEVEL) {
+            cells[current+next].precipitation += Math.max(humidity / rand(10, 20), 1); // coastal precipitation
           } else {
             humidity = Math.min(humidity + 5 * modifier, maxPrec); // wind gets more humidity passing water cell
-            cells.prec[current] += 5 * modifier; // water cells precipitation (need to correctly pour water through lakes)
+            cells[current].precipitation += 5 * modifier; // water cells precipitation (need to correctly pour water through lakes)
           }
           continue;
         }
 
         // land cell
         const precipitation = getPrecipitation(humidity, current, next);
-        cells.prec[current] += precipitation;
+        cells[current].precipitation += precipitation;
         const evaporation = precipitation > 1.5 ? 1 : 0; // some humidity evaporates back to the atmosphere
         humidity = Math.min(Math.max(humidity - precipitation + evaporation, 0), maxPrec);
       }
@@ -813,10 +816,10 @@ function generatePrecipitation() {
   }
 
   function getPrecipitation(humidity, i, n) {
-    if (cells.h[i+n] > 85) return humidity; // 85 is max passable height
+    if (cells[i+n].height > 85) return humidity; // 85 is max passable height
     const normalLoss = Math.max(humidity / (10 * modifier), 1); // precipitation in normal conditions
-    const diff = Math.max(cells.h[i+n] - cells.h[i], 0); // difference in height
-    const mod = (cells.h[i+n] / 70) ** 2; // 50 stands for hills, 70 for mountains
+    const diff = Math.max(cells[i+n].height - cells[i].height, 0); // difference in height
+    const mod = (cells[i+n].height / 70) ** 2; // 50 stands for hills, 70 for mountains
     return Math.min(Math.max(normalLoss + diff * mod, 1), humidity);
   }
 
@@ -1109,7 +1112,7 @@ function getBiomeId(moisture, temperature, height) {
   if (temperature < -5) return 11; // permafrost biome
   if (moisture > 40 && height < 25 || moisture > 24 && height > 24) return 12; // wetland biome
   const m = Math.min(moisture / 5 | 0, 4); // moisture band from 0 to 4
-  const t = Math.min(Math.max(20 - temperature, 0), 25); // temparature band from 0 to 25
+  const t = Math.min(Math.max(20 - temperature, 0), 25); // temperature band from 0 to 25
   return biomesData.biomesMartix[m][t];
 }
 
