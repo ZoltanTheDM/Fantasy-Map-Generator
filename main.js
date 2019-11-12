@@ -615,9 +615,6 @@ function markFeatures() {
     while (queue.length) {
       const q = queue.pop()
       if (q.b) border = true;
-      if (typeof(q.c) === "undefined"){
-        console.log(q);
-      }
       q.c.forEach(function(e) {
         const eLand = e.height >= ENUM.HEIGHT.SEA_LEVEL;
         //if (eLand) cells.t[e] = 2;
@@ -733,6 +730,7 @@ function generatePrecipitation() {
   console.time('generatePrecipitation');
   prec.selectAll("*").remove();
   const cells = grid.cells;
+  console.log(grid.cells.filter(c => c.feature !== 1));
   // cells.prec = new Uint8Array(cells.i.length); // precipitation array
   const modifier = precInput.value / 100; // user's input
   const cellsX = grid.cellsX, cellsY = grid.cellsY;
@@ -762,8 +760,8 @@ function generatePrecipitation() {
   });
 
   // distribute winds by direction
-  if (westerly.length) passWind(westerly, 120 * modifier, 1, cellsX);
-  if (easterly.length) passWind(easterly, 120 * modifier, -1, cellsX);
+  if (westerly.length) passWind(westerly, 120 * modifier, 1, cellsX - 1);
+  if (easterly.length) passWind(easterly, 120 * modifier, -1, cellsX - 1);
   const vertT = (southerly + northerly);
   if (northerly) {
     const bandN = (Math.abs(mapCoordinates.latN) - 1) / 5 | 0;
@@ -787,7 +785,7 @@ function generatePrecipitation() {
       const value = first[0];
 
       let humidity = maxPrec - cells[value].height; // initial water amount
-      if (humidity <= 0) continue; // if value cell in row is too elevated cosdired wind dry
+      if (humidity <= 0) continue; // if value cell in row is too elevated considered wind dry
       for (let s = 0, current = value; s < steps; s++, current += next) {
         // no flux on permafrost
         if (cells[current].temperature < -5) continue;
@@ -812,10 +810,11 @@ function generatePrecipitation() {
   }
 
   function getPrecipitation(humidity, i, n) {
-    if (cells[i+n].height > 85) return humidity; // 85 is max passable height
+    const cell = cells[n+i];
+    if (cell.height > 85) return humidity; // 85 is max passable height
     const normalLoss = Math.max(humidity / (10 * modifier), 1); // precipitation in normal conditions
-    const diff = Math.max(cells[i+n].height - cells[i].height, 0); // difference in height
-    const mod = (cells[i+n].height / 70) ** 2; // 50 stands for hills, 70 for mountains
+    const diff = Math.max(cell.height - cells[i].height, 0); // difference in height
+    const mod = (cell.height / 70) ** 2; // 50 stands for hills, 70 for mountains
     return Math.min(Math.max(normalLoss + diff * mod, 1), humidity);
   }
 
@@ -844,6 +843,9 @@ function generatePrecipitation() {
     if (northerly) wind.append("text").attr("x", graphWidth / 2).attr("y", 42).text("\u21CA");
     if (southerly) wind.append("text").attr("x", graphWidth / 2).attr("y", graphHeight - 20).text("\u21C8");
   }();
+
+  console.log(grid.cells.filter(c => c.feature !== 1));
+  // console.log(grid.cells);
 
   console.timeEnd('generatePrecipitation');
 }
@@ -1114,10 +1116,6 @@ function rankCells() {
   const areaMean = d3.mean(cells.map(f =>f.area)); // to adjust population by cell area
 
   for (const cell of cells) {
-  // for (const i of cells.i) {
-    if (biomesData.biomeList[cell.biome] === undefined){
-      console.log(cell, cell.biome, biomesData.biomeList)
-    }
     let s = +biomesData.biomeList[cell.biome].habitability; // base suitability derived from biome habitability
     if (!s) continue; // uninhabitable biomes has 0 suitability
     s += normalize(cell.flux + cell.confluence, flMean, flMax) * 250; // big rivers and confluences are valued

@@ -9,10 +9,10 @@
   const generate = function() {
     console.time('generateCultures');
     cells = pack.cells;
-    cells.culture = new Uint16Array(cells.i.length); // cell cultures
+    // cells.culture = new Uint16Array(cells.i.length); // cell cultures
     let count = +culturesInput.value;
 
-    const populated = cells.i.filter(i => cells.s[i]).sort((a, b) => cells.s[b] - cells.s[a]); // cells sorted by population
+    const populated = cells.filter(cell => cell.suitability).sort((a, b) => b.suitability - a.suitability); // cells sorted by population
     if (populated.length < count * 25) {
       count = Math.floor(populated.length / 50);
       if (!count) {
@@ -44,7 +44,7 @@
 
     cultures.forEach(function(culture, i) {
       const c = culture.center = placeCultureCenter();
-      centers.add(cells.p[c]);
+      centers.add([c.x, c.y]);
       culture.i = i+1;
       delete culture.odd;
       culture.color = colors[i];
@@ -52,7 +52,7 @@
       culture.expansionism = defineCultureExpansionism(culture.type);
       culture.origin = 0;
       culture.code = getCode(culture.name);
-      cells.culture[c] = i+1;
+      c.culture = i+1;
     });
 
     // the first culture with id 0 is for wildlands
@@ -83,18 +83,18 @@
         center = populated[biased(0, populated.length-1, 3)];
         spacing = spacing * .8;
       }
-      while (centers.find(cells.p[center][0], cells.p[center][1], spacing) !== undefined);
+      while (centers.find(center.x, center.y, spacing) !== undefined);
       return center;
     }
 
     // set culture type based on culture center position
-    function defineCultureType(i) {
-      if (cells.h[i] > 50) return "Highland"; // no penalty for hills and moutains, high for other elevations
-      const f = pack.features[cells.f[cells.haven[i]]]; // feature
+    function defineCultureType(cell) {
+      if (cell.height > 50) return "Highland"; // no penalty for hills and moutains, high for other elevations
+      const f = pack.features[cell.haven.feature]; // feature
       if (f.type === "lake" && f.cells > 5) return "Lake" // low water cross penalty and high for non-along-coastline growth
-      if ((f.cells < 10 && cells.harbor[i]) || (cells.harbor[i] === 1 && Math.random() < .5)) return "Naval"; // low water cross penalty and high for non-along-coastline growth
-      if (cells.r[i] && cells.fl[i] > 100) return "River"; // no River cross penalty, penalty for non-River growth
-      const b = cells.biome[i];
+      if ((f.cells < 10 && cell.harbor) || (cell.harbor === 1 && Math.random() < .5)) return "Naval"; // low water cross penalty and high for non-along-coastline growth
+      if (cell.river && cell.flux > 100) return "River"; // no River cross penalty, penalty for non-River growth
+      const b = cell.biome;
       if (b === 4 || b === 1 || b === 2) return "Nomadic"; // high penalty in forest biomes and near coastline
       if (b === 3 || b === 9 || b === 10) return "Hunting"; // high penalty in non-native biomes
       return "Generic";
@@ -359,16 +359,16 @@
       queue.queue({e:c.center, p:0, c:c.i});
     });
     
-    const neutral = cells.i.length / 5000 * 3000 * neutralInput.value; // limit cost for culture growth
+    const neutral = cells.length / 5000 * 3000 * neutralInput.value; // limit cost for culture growth
     const cost = [];
     while (queue.length) {
       const next = queue.dequeue(), n = next.e, p = next.p, c = next.c;
       const type = pack.cultures[c].type;
-      cells.c[n].forEach(function(e) {
-        const biome = cells.biome[e];
+      n.c.forEach(function(e) {
+        const biome = e.biome;
         const biomeCost = getBiomeCost(c, biome, type);
-        const biomeChangeCost = biome === cells.biome[n] ? 0 : 20; // penalty on biome change
-        const heightCost = getHeightCost(e, cells.h[e], type);
+        const biomeChangeCost = biome === n.biome ? 0 : 20; // penalty on biome change
+        const heightCost = getHeightCost(e, e.height, type);
         const riverCost = getRiverCost(cells.r[e], e, type);
         const typeCost = getTypeCost(cells.t[e], type);
         const totalCost = p + (biomeCost + biomeChangeCost + heightCost + riverCost + typeCost) / pack.cultures[c].expansionism;
@@ -392,7 +392,7 @@
 
   function getBiomeCost(c, biome, type) {
     const b = biomesData.biomeList[biome];
-    if (cells.biome[pack.cultures[c].center] === biome) return 10; // tiny penalty for native biome
+    if (pack.cultures[c].center.biome === biome) return 10; // tiny penalty for native biome
     if (type === "Hunting") return b.cost * 5; // non-native biome penalty for hunters
     if (type === "Nomadic" && biome > 4 && biome < 10) return b.cost * 10; // forest biome penalty for nomads
     return b.cost * 2; // general non-native biome penalty
