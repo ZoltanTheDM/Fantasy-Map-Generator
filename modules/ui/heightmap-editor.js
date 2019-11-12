@@ -9,7 +9,7 @@ function editHeightmap() {
       <p>If you need to change the coastline and keep the data, you may try the <i>risk</i> edit option. 
       The data will be restored as much as possible, but the coastline change can cause unexpected fluctuations and errors.</p>
       <p>Check out ${link("https://github.com/Azgaar/Fantasy-Map-Generator/wiki/Heightmap-customization", "wiki")} for guidance.</p>
-      <p>Please <span class="pseudoLink" onclick=saveMap(); editHeightmap();>save the map</span> before edditing the heightmap!</p>`;
+      <p>Please <span class="pseudoLink" onclick=saveMap(); editHeightmap();>save the map</span> before editing the heightmap!</p>`;
 
     $("#alert").dialog({resizable: false, title: "Edit Heightmap", width: "28em",
       buttons: {
@@ -42,6 +42,9 @@ function editHeightmap() {
   function enterHeightmapEditMode(type) {
     editHeightmap.layers = Array.from(mapLayers.querySelectorAll("li:not(.buttonoff)")).map(node => node.id); // store layers preset
     editHeightmap.layers.forEach(l => document.getElementById(l).click()); // turn off all layers
+
+    enterStandardView();
+    disable3dViews();
 
     customization = 1;
     closeDialogs();
@@ -108,6 +111,8 @@ function editHeightmap() {
       tip("Insufficient land area! There should be at least 200 land cells to finalize the heightmap", null, "error");
       return;
     }
+
+    enable3dViews();
 
     customization = 0;
     customizationMenu.style.display = "none";
@@ -1211,7 +1216,6 @@ function editHeightmap() {
       +canvas.dataset.hovered > 2 ? tip("") : tip("Left mouse to change angle, middle mouse or mousewheel to zoom, right mouse to pan. R to toggle rotation");
       canvas.dataset.hovered = (+canvas.dataset.hovered|0) + 1;
     };
-    show3dOptions();
 
     $("#preview3d").dialog({
       title: "3D Preview", resizable: true,
