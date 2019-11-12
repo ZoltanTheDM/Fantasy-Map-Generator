@@ -231,7 +231,7 @@ function getMapData() {
       temperaturePoleOutput.value, precOutput.value, JSON.stringify(winds),
       mapName.value].join("|");
     const coords = JSON.stringify(mapCoordinates);
-    const b = biomesData.biomeList
+    const b = pack.biomes
     const biomes = [b.map(i => i.color), b.map(i => i.habitability), b.map(i => i.name)].join("|");
     const notesData = JSON.stringify(notes);
 
@@ -544,6 +544,7 @@ function parseLoadedData(data) {
 
     const reliefIcons = document.getElementById("defs-relief").innerHTML; // save relief icons
     const hatching = document.getElementById("hatching").cloneNode(true); // save hatching
+    pack = {};
 
     void function parseParameters() {
       const params = data[0].split("|");
@@ -584,30 +585,28 @@ function parseLoadedData(data) {
       if (data[4]) notes = JSON.parse(data[4]);
 
       const biomes = data[3].split("|");
-      _biomesData = applyDefaultBiomesSystem();
-
       const colorsList = biomes[0].split(",");
       const habitabilityList = biomes[1].split(",").map(h => +h);
       const namesList = biomes[2].split(",");
 
-      biomesData = [];
+      applyDefaultBiomesSystem();
+      const initialBiomes = pack.biomes.length;
 
       for (let i = 0; i < namesList.length; i++){
         const name = namesList[i];
         const color = colorsList[i];
         const habitability = habitabilityList[i];
         let icons;
-        if (i < _biomesData.biomeList.length){
-          icons = _biomesData.biomeList[i].icons;
-          cost = _biomesData.biomeList[i].cost;
+        if (i < initialBiomes){
+          pack.biomes[i].name = namesList[i];
+          pack.biomes[i].color = colorsList[i];
+          pack.biomes[i].habitability = habitabilityList[i];
         }
         else{
-          icons = new Icons({}, 0);
-          cost = 50;
+          pack.biomes.push(new Biome(name, color, habitability));
+          pack.biomes[i].id = i; //don't forget the id!
         }
-        biomesData.push(new Biome(name, color, habitability, icons, cost));
       }
-
     }()
 
     void function replaceSVG() {
@@ -675,7 +674,6 @@ function parseLoadedData(data) {
     }()
 
     void function parsePackData() {
-      pack = {};
       reGraph();
       reMarkFeatures();
       pack.features = JSON.parse(data[12]);
@@ -824,7 +822,8 @@ function parseLoadedData(data) {
         });
 
         // 1.0 added new biome - Wetland
-        biomesData.biomeList.push("Wetland", "#0b9131", 12);
+        pack.biomes.push(new Biome("Wetland", "#0b9131", 12, new Icons({swamp:1}, 150), 150));
+        pack.biomes[12].id = 12;
       }
 
       if (version < 1.1) {
