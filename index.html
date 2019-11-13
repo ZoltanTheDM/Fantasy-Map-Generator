@@ -1807,8 +1807,8 @@
           <button id="overviewBurgsButton" data-tip="Click to open Burgs Overview. Shortcut: Shift + T">Burgs</button>
           <button id="overviewRiversButton" data-tip="Click to open Rivers Overview. Shortcut: Shift + V">Rivers</button>
           <button id="overviewCellsButton" data-tip="Click to open Cell details view. Shortcut: Shift + E">Cells</button>
+          <button id="overviewWaterbodiesButton" data-tip="Click to open Waterbodies Overview. Shortcut: Shift + W">Waterbodies</button>
           <!-- <button id="overviewLandmassedButton" data-tip="Click to open Landmasses Overview. Shortcut: Shift + L">Landmasses</button> -->
-          <!-- <button id="overviewWaterbodiesButton" data-tip="Click to open Waterbodies Overview. Shortcut: Shift + W">Waterbodies</button> -->
           <!-- <button id="overviewRoutesButton" data-tip="Click to open Routes Overview. Shortcut: Shift + U">Routes</button> -->
         </div>
 
@@ -2572,6 +2572,45 @@
         <button id="biomesRestore" data-tip="Restore the defaults and re-define biomes based on current moisture and temperature" class="icon-history"></button>
         <button id="biomesRegenerateReliefIcons" data-tip="Regenerate relief icons based on current biomes and elevation" class="icon-tree"></button>
         <button id="biomesExport" data-tip="Save biomes-related data as a text file (.csv)" class="icon-download"></button>
+      </div>
+
+    </div>
+
+    <div id="WaterbodyOverview" class="dialog stable" style="display: none">
+      <div id="WaterbodyHeader" class="header">
+        <div style="left:1.4em" data-tip="Click to sort by water body name" class="sortable alphabetically" data-sortby="name">Name&nbsp;</div>
+        <div style="left:12em" data-tip="Click to sort by water body type" class="sortable hide" data-sortby="type">Type&nbsp;</div>
+        <div style="left:19em" data-tip="Click to sort by water body group" class="sortable hide" data-sortby="type">Group&nbsp;</div>
+        <div style="left:25em" data-tip="Click to sort by water body cells number" class="sortable hide icon-sort-number-down" data-sortby="cells">Cells&nbsp;</div>
+        <div style="left:30em" data-tip="Click to sort by water body area" class="sortable hide" data-sortby="area">Area&nbsp;</div>
+      </div>
+
+      <div id="WaterbodyBody" class="table" data-type="absolute"></div>
+
+      <div id="WaterbodyFooter" class="totalLine">
+        <div data-tip="Number of water bodies" style="margin-left: 12px">Waterbodies:&nbsp;<span id="WaterbodiesFooterNumber">0</span></div>
+        <div data-tip="Total cells number" style="margin-left: 12px">Cells:&nbsp;<span id="WaterbodiesFooterCells">0</span></div>
+        <div data-tip="Total area" style="margin-left: 12px">Land Area:&nbsp;<span id="WaterbodiesFooterArea">0</span></div>
+      </div>
+
+      <div id="WaterbodyBottom"><!-- 
+        <button id="biomesEditorRefresh" data-tip="Refresh the Editor" class="icon-cw"></button>
+        <button id="biomesEditStyle" data-tip="Edit biomes style in Style Editor" class="icon-adjust"></button>
+        <button id="biomesLegend" data-tip="Toggle Legend box" class="icon-list-bullet"></button>
+        <button id="biomesPercentage" data-tip="Toggle percentage / absolute values views" class="icon-percent"></button>
+        <button id="biomesManually" data-tip="Manually re-assign biomes to not follow the default moisture/temperature pattern" class="icon-brush"></button>
+        <div id="biomesManuallyButtons" style="display: none">
+          <label data-tip="Change brush size. Shortcut: + (increase), – (decrease)" class="italic">Brush radius:
+            <input id="biomesManuallyBrush" oninput="tip('Brush radius: '+this.value); biomesManuallyBrushNumber.value = this.value" type="range" min="5" max="99" value="15" style="width:4em">
+            <input id="biomesManuallyBrushNumber" oninput="tip('Brush radius: '+this.value); biomesManuallyBrush.value = this.value" type="number" min="5" max="99" value="15">
+          </label><br>
+          <button id="biomesManuallyApply" data-tip="Apply current assignment" class="icon-check"></button>
+          <button id="biomesManuallyCancel" data-tip="Cancel assignment" class="icon-cancel"></button>
+        </div>
+        <button id="biomesAdd" data-tip="Add a custom biome" class="icon-plus"></button>
+        <button id="biomesRestore" data-tip="Restore the defaults and re-define biomes based on current moisture and temperature" class="icon-history"></button>
+        <button id="biomesRegenerateReliefIcons" data-tip="Regenerate relief icons based on current biomes and elevation" class="icon-tree"></button>
+        <button id="biomesExport" data-tip="Save biomes-related data as a text file (.csv)" class="icon-download"></button> -->
       </div>
 
     </div>
@@ -3402,6 +3441,7 @@
   <script defer src="modules/ui/zones-editor.js"></script>
   <script defer src="modules/ui/burgs-overview.js"></script>
   <script defer src="modules/ui/rivers-overview.js"></script>
+  <script defer src="modules/ui/water-editor.js"></script>
   <script defer src="modules/ui/editors.js"></script>
   <script defer src="modules/ui/3d.js"></script>
   <script defer src="libs/quantize.min.js"></script>
