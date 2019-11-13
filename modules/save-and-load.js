@@ -940,7 +940,7 @@ function parseLoadedData(data) {
         BurgsAndStates.collectStatistics();
       }
 
-      if (version < 1.23) {
+      if (version < BETA) {
         //Adding in species
         pack.species = [new Species()]; //default to human
         pack.cells.pop = [pack.cells.pop];

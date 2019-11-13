@@ -1,6 +1,111 @@
 // FMG helper functions
 "use strict";
 
+function waterSuitability(i){
+  const cells = pack.cells, f = pack.features;
+  let s = 0;
+  if (cells.t[i] === 1) {
+    if (cells.r[i]) s += 15; // estuary is valued
+    const type = f[cells.f[cells.haven[i]]].type;
+    const group = f[cells.f[cells.haven[i]]].group;
+    if (type === "lake") {
+      // lake coast is valued
+      if (group === "freshwater") s += 30;
+      else if (group !== "lava") s += 10;
+    } else {
+      s += 5; // ocean coast is valued
+      if (cells.harbor[i] === 1) s += 20; // safe sea harbor is valued
+    }
+  }
+  return s;
+}
+
+function defaultSuitability(i){
+  const cells = pack.cells, f = pack.features;
+
+  let s = +pack.biomes[cells.biome[i]].habitability; // base suitability derived from biome habitability
+  if (!s) return 0; // uninhabitable biomes has 0 suitability
+  s += normalize(cells.fl[i] + cells.conf[i], pack.flMean, pack.flMax) * 250; // big rivers and confluences are valued
+  s -= (cells.h[i] - 50) / 5; // low elevation is valued, high is not;
+
+  s += waterSuitability(i);
+
+  return s / 5; // general population rate
+}
+
+//similar to human but loves mountains, higher the better
+//a little slower then humans to bread
+function mountainSuitability(i){
+  const cells = pack.cells, f = pack.features;
+
+  if (!cells.biome[i]) return 0; // can't live in water
+  let s = normalize(cells.fl[i] + cells.conf[i], pack.flMean, pack.flMax) * 100; // big rivers and confluences are valued
+  s += (cells.h[i] - 40) / 2; // high elevation is valued, low is not;
+
+  s += waterSuitability(i);
+
+  return s / 6; // general population rate
+}
+
+//similar to human but loves mountains, higher the better
+//a little slower then humans to bread
+function woodedSuitability(i){
+  const cells = pack.cells, f = pack.features;
+  let s = +pack.biomes[cells.biome[i]].habitability; // base suitability derived from biome habitability
+  if (!s) return 0; // uninhabitable biomes has 0 suitability
+  s += normalize(cells.fl[i] + cells.conf[i], pack.flMean, pack.flMax) * 300; // big rivers and confluences are valued
+  s -= (cells.h[i] - 50) / 4; // low elevation is valued, high is not;
+
+  //forested areas are heavily valued
+  if (cells.biome[i] <= 8 && cells.biome[i] >= 5){s += 20;}
+
+  s += waterSuitability(i);
+
+  return s / 8; // general population rate
+}
+
+function hotSuitability(i){
+  const cells = pack.cells, f = pack.features;
+
+  if (!cells.biome[i]) return 0;  // can't live in water
+  // let s = +pack.biomes[cells.biome[i]].habitability; // base suitability derived from biome habitability
+  // if (!s) return 0; // uninhabitable biomes has 0 suitability
+  let s = normalize(cells.fl[i] + cells.conf[i], pack.flMean, pack.flMax) * 50; // big rivers and confluences are valued
+  s -= (cells.h[i] - 50) / 5; // low elevation is valued, high is not;
+
+  //Hot areas valued
+  if (grid.cells.temp[cells.g[i]] > 15){s += 30;}
+
+  s += waterSuitability(i);
+
+  return s / 5; // general population rate
+}
+
+
+function coldSuitability(i){
+  const cells = pack.cells, f = pack.features;
+
+  if (!cells.biome[i]) return 0;  // can't live in water
+  // let s = +pack.biomes[cells.biome[i]].habitability; // base suitability derived from biome habitability
+  // if (!s) return 0; // uninhabitable biomes has 0 suitability
+  let s = normalize(cells.fl[i] + cells.conf[i], pack.flMean, pack.flMax) * 250; // big rivers and confluences are valued
+  s -= (cells.h[i] - 40) / 3; // low elevation is valued, high is not;
+
+  //Cold areas valued
+  if (grid.cells.temp[cells.g[i]] < 8){s += 20;}
+
+  s += waterSuitability(i);
+
+  return s / 7; // general population rate
+}
+
+class Species {
+  constructor(name = "Human", getSuitability = defaultSuitability){
+    this.name = name;
+    this.getSuitability = getSuitability;
+  }
+}
+
 // add boundary points to pseudo-clip voronoi cells
 function getBoundaryPoints(width, height, spacing) {
   const offset = rn(-1 * spacing);

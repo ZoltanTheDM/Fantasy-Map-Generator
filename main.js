@@ -7,7 +7,8 @@
 // See also https://github.com/Azgaar/Fantasy-Map-Generator/issues/153
 
 "use strict";
-const version = "1.23"; // generator version
+const BETA = 100;
+const version = ""+100; // generator version
 document.title += " v" + version;
 
 // if map version is not stored, clear localStorage and show a message
@@ -134,38 +135,6 @@ class Biome {
     this.area += cells.area[cell];
     this.rural += totalPopOfCell(cell);
     if (cells.burg[cell]) this.urban += pack.burgs[cells.burg[cell]].population;
-  }
-}
-
-class Species {
-  constructor(name = "Human"){
-    this.name = name;
-  }
-
-  getSuitability(i){
-    const cells = pack.cells, f = pack.features;
-
-    if (cells.biome === undefined) console.log(cells)
-    let s = +pack.biomes[cells.biome[i]].habitability; // base suitability derived from biome habitability
-    if (!s) return s; // uninhabitable biomes has 0 suitability
-    s += normalize(cells.fl[i] + cells.conf[i], pack.flMean, pack.flMax) * 250; // big rivers and confluences are valued
-    s -= (cells.h[i] - 50) / 5; // low elevation is valued, high is not;
-
-    if (cells.t[i] === 1) {
-      if (cells.r[i]) s += 15; // estuary is valued
-      const type = f[cells.f[cells.haven[i]]].type;
-      const group = f[cells.f[cells.haven[i]]].group;
-      if (type === "lake") {
-        // lake coast is valued
-        if (group === "freshwater") s += 30;
-        else if (group !== "lava") s += 10;
-      } else {
-        s += 5; // ocean coast is valued
-        if (cells.harbor[i] === 1) s += 20; // safe sea harbor is valued
-      }
-    }
-
-    return s / 5; // general population rate
   }
 }
 
@@ -362,19 +331,19 @@ function findBurgForMFCG(params) {
 // apply default biomes data
 function applyDefaultBiomesSystem() {
   pack.biomes = [
-    new Biome ("Marine", "#53679f", 0, new Icons({}, 0), 10),
-    new Biome ("Hot desert", "#fbe79f", 2, new Icons({dune:3, cactus:6, deadTree:1}, 3), 200),
-    new Biome ("Cold desert", "#b5b887", 5, new Icons({dune:9, deadTree:1}, 2), 150),
-    new Biome ("Savanna", "#d2d082", 20, new Icons({acacia:1, grass:9}, 120), 60),
-    new Biome ("Grassland", "#c8d68f", 30, new Icons({grass:1}, 120), 50),
-    new Biome ("Tropical seasonal forest", "#b6d95d", 50, new Icons({acacia:8, palm:1}, 120), 70),
-    new Biome ("Temperate deciduous forest", "#29bc56", 100, new Icons({deciduous:1}, 120), 70),
-    new Biome ("Tropical rainforest", "#7dcb35", 80, new Icons({acacia:5, palm:3, deciduous:1, swamp:1}, 150), 80),
-    new Biome ("Temperate rainforest", "#409c43", 90, new Icons({deciduous:6, swamp:1}, 150), 90),
-    new Biome ("Taiga", "#4b6b32", 10, new Icons({conifer:1}, 100), 80),
-    new Biome ("Tundra", "#96784b", 2, new Icons({grass:1}, 5), 100),
-    new Biome ("Glacier", "#d5e7eb", 0, new Icons({}, 0), 255),
-    new Biome ("Wetland", "#0b9131", 12, new Icons({swamp:1}, 150), 150),
+    /*0*/new Biome ("Marine", "#53679f", 0, new Icons({}, 0), 10),
+    /*1*/new Biome ("Hot desert", "#fbe79f", 2, new Icons({dune:3, cactus:6, deadTree:1}, 3), 200),
+    /*2*/new Biome ("Cold desert", "#b5b887", 5, new Icons({dune:9, deadTree:1}, 2), 150),
+    /*3*/new Biome ("Savanna", "#d2d082", 20, new Icons({acacia:1, grass:9}, 120), 60),
+    /*4*/new Biome ("Grassland", "#c8d68f", 30, new Icons({grass:1}, 120), 50),
+    /*5*/new Biome ("Tropical seasonal forest", "#b6d95d", 50, new Icons({acacia:8, palm:1}, 120), 70),
+    /*6*/new Biome ("Temperate deciduous forest", "#29bc56", 100, new Icons({deciduous:1}, 120), 70),
+    /*7*/new Biome ("Tropical rainforest", "#7dcb35", 80, new Icons({acacia:5, palm:3, deciduous:1, swamp:1}, 150), 80),
+    /*8*/new Biome ("Temperate rainforest", "#409c43", 90, new Icons({deciduous:6, swamp:1}, 150), 90),
+    /*9*/new Biome ("Taiga", "#4b6b32", 10, new Icons({conifer:1}, 100), 80),
+    /*10*/new Biome ("Tundra", "#96784b", 2, new Icons({grass:1}, 5), 100),
+    /*11*/new Biome ("Glacier", "#d5e7eb", 0, new Icons({}, 0), 255),
+    /*12*/new Biome ("Wetland", "#0b9131", 12, new Icons({swamp:1}, 150), 150),
   ];
 
   //it is occasionally useful to have the "ID" be in the object
@@ -397,11 +366,11 @@ function applyDefaultBiomesSystem() {
 
 function applyDefaultSpecies(){
   pack.species = [
-    new Species("Human"),    //standard
-    // new Species("Elf"),      //wood loving
-    // new Species("Dwarf"),    //mounting loving
-    // new Species("Lizard"),   //desert loving
-    // new Species("Goliath"),  //cold loving
+    new Species("Human", defaultSuitability),
+    new Species("Elf", woodedSuitability),
+    new Species("Dwarf", mountainSuitability),
+    new Species("Lizard", hotSuitability),
+    new Species("Goliath", coldSuitability),
   ];
 
   pack.species.forEach((s, i) => s.id = i);

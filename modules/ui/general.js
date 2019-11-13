@@ -186,11 +186,13 @@ function getFriendlyPopulation(i) {
   const rural = totalPopOfCell(i) * populationRate.value;
   const urban = pack.cells.burg[i] ? pack.burgs[pack.cells.burg[i]].population * populationRate.value * urbanization.value : 0;
   if (!rural && !urban) return `No Population`;
-  const breakdown = pack.species.reduce((old_s, specie, val) => {
-    const count = pack.cells.pop[val][i] * populationRate.value;
-    if (count <= 0) return old_s;
-    return old_s + (val > 0 ? " ," : "") + specie.name + " " + si(count);
-  }, "")
+  const breakdown = pack.species
+    .map((s, index) => {return {name: s.name, count: pack.cells.pop[index][i] * populationRate.value};})
+    .sort((a, b) => b.count - a.count)
+    .reduce((old_s, specie, val) => {
+      if (specie.count <= 0) return old_s;
+      return old_s + (old_s === "" ? "" : ", ") + specie.name + " " + si(specie.count);
+    }, "");
   if (!urban){
     return `${si(rural)} (${breakdown})`;
   }
