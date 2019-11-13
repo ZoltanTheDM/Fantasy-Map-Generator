@@ -20,7 +20,7 @@
       segments.forEach(s => paths.push(s));
     }
 
-    cells.i.forEach(i => cells.s[i] += cells.road[i] / 2); // add roads to suitability score
+    cells.i.forEach(i => cells.s.forEach(suit => suit[i] += cells.road[i] / 2)); // add roads to suitability score
     console.timeEnd("generateMainRoads");
     return paths;
   }

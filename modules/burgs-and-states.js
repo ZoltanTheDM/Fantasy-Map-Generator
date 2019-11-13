@@ -35,7 +35,8 @@
       let count = +regionsInput.value;
       let burgs = [0];
 
-      const score = new Int16Array(cells.s.map(s => s * Math.random())); // cell score for capitals placement
+      const score = new Int16Array(cells.i.length); // cell score for capitals placement
+      score.forEach((_, i) => cells.s.forEach(suit => score[i] += suit[i] * Math.random()));
       const sorted = cells.i.filter(i => score[i] > 0 && cells.culture[i]).sort((a, b) => score[b] - score[a]); // filtered and sorted array of indexes
 
       if (sorted.length < count * 10) {
@@ -100,7 +101,9 @@
     // place secondary settlements based on geo and economical evaluation
     function placeTowns() {
       console.time('placeTowns');
-      const score = new Int16Array(cells.s.map(s => s * gauss(1,3,0,20,3))); // a bit randomized cell score for towns placement
+      const score = new Int16Array(cells.i.length); // a bit randomized cell score for towns placement
+      score.forEach((_, i) => cells.s.forEach(suit => score[i] += suit[i] * gauss(1,3,0,20,3)));
+      console.log("should be a group of mostly non zero ints");
       const sorted = cells.i.filter(i => !cells.burg[i] && score[i] > 0 && cells.culture[i]).sort((a, b) => score[b] - score[a]); // filtered and sorted array of indexes
 
       const desiredNumber = manorsInput.value == 1000 ? rn(sorted.length / 5 / (grid.points.length / 10000) ** .8) : manorsInput.valueAsNumber;
@@ -150,7 +153,7 @@
       b.port = port ? cells.f[cells.haven[i]] : 0; // port is defined by feature id it lays on
 
       // define burg population (keep urbanization at about 10% rate)
-      b.population = rn(Math.max((cells.s[i] + cells.road[i]) / 8 + b.i / 1000 + i % 100 / 1000, .1), 3);
+      b.population = rn(Math.max((totalSutabilityOfCell(i) + cells.road[i]) / 8 + b.i / 1000 + i % 100 / 1000, .1), 3);
       if (b.capital) b.population = rn(b.population * 1.3, 3); // increase capital population
 
       if (port) {
@@ -552,7 +555,7 @@
       // collect stats
       states[s].cells += 1;
       states[s].area += cells.area[i];
-      states[s].rural += cells.pop[i];
+      states[s].rural += totalPopOfCell(i);
       if (cells.burg[i]) {
         states[s].urban += pack.burgs[cells.burg[i]].population; 
         states[s].burgs++;

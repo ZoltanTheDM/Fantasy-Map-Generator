@@ -48,7 +48,7 @@ function editReligions() {
       const r = cells.religion[i];
       religions[r].cells += 1;
       religions[r].area += cells.area[i];
-      religions[r].rural += cells.pop[i];
+      religions[r].rural += totalPopOfCell(i);
       if (cells.burg[i]) religions[r].urban += pack.burgs[cells.burg[i]].population;
     }
   }
@@ -266,13 +266,13 @@ function editReligions() {
       const ruralChange = ruralPop.value / rural;
       if (isFinite(ruralChange) && ruralChange !== 1) {
         const cells = pack.cells.i.filter(i => pack.cells.religion[i] === religion);
-        cells.forEach(i => pack.cells.pop[i] *= ruralChange);
+        cells.forEach(i => pack.cells.pop.forEach(pop => pop[i] *= ruralChange));
       }
       if (!isFinite(ruralChange) && +ruralPop.value > 0) {
         const points = ruralPop.value / populationRate.value;
         const cells = pack.cells.i.filter(i => pack.cells.religion[i] === religion);
         const pop = rn(points / cells.length);
-        cells.forEach(i => pack.cells.pop[i] = pop);
+        cells.forEach(i => pack.cells.pop.forEach(pop => pop[i] = pop));
       }
 
       const urbanChange = urbanPop.value / urban;

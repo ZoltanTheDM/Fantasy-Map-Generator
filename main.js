@@ -7,7 +7,7 @@
 // See also https://github.com/Azgaar/Fantasy-Map-Generator/issues/153
 
 "use strict";
-const version = "1.22"; // generator version
+const version = "1.23"; // generator version
 document.title += " v" + version;
 
 // if map version is not stored, clear localStorage and show a message
@@ -132,8 +132,40 @@ class Biome {
   addCell(cell, cells){
     this.cells += 1;
     this.area += cells.area[cell];
-    this.rural += cells.pop[cell];
+    this.rural += totalPopOfCell(cell);
     if (cells.burg[cell]) this.urban += pack.burgs[cells.burg[cell]].population;
+  }
+}
+
+class Species {
+  constructor(name = "Human"){
+    this.name = name;
+  }
+
+  getSuitability(i){
+    const cells = pack.cells, f = pack.features;
+
+    if (cells.biome === undefined) console.log(cells)
+    let s = +pack.biomes[cells.biome[i]].habitability; // base suitability derived from biome habitability
+    if (!s) return s; // uninhabitable biomes has 0 suitability
+    s += normalize(cells.fl[i] + cells.conf[i], pack.flMean, pack.flMax) * 250; // big rivers and confluences are valued
+    s -= (cells.h[i] - 50) / 5; // low elevation is valued, high is not;
+
+    if (cells.t[i] === 1) {
+      if (cells.r[i]) s += 15; // estuary is valued
+      const type = f[cells.f[cells.haven[i]]].type;
+      const group = f[cells.f[cells.haven[i]]].group;
+      if (type === "lake") {
+        // lake coast is valued
+        if (group === "freshwater") s += 30;
+        else if (group !== "lava") s += 10;
+      } else {
+        s += 5; // ocean coast is valued
+        if (cells.harbor[i] === 1) s += 20; // safe sea harbor is valued
+      }
+    }
+
+    return s / 5; // general population rate
   }
 }
 
@@ -145,6 +177,7 @@ let customization = 0; // 0 - no; 1 = heightmap draw; 2 - states draw; 3 - add s
 let mapCoordinates = {}; // map coordinates on globe
 let winds = [225, 45, 225, 315, 135, 315]; // default wind directions
 applyDefaultBiomesSystem();
+applyDefaultSpecies();
 let nameBases = Names.getNameBases(); // cultures-related data
 const fonts = ["Almendra+SC", "Georgia", "Arial", "Times+New+Roman", "Comic+Sans+MS", "Lucida+Sans+Unicode", "Courier+New"]; // default web-safe fonts
 
@@ -360,6 +393,18 @@ function applyDefaultBiomesSystem() {
     new Uint8Array([5,6,6,6,6,6,6,8,8,8,8,8,8,8,8,8,8,9,9,9,9,9,9,10,10,10]),
     new Uint8Array([7,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,9,9,9,9,9,9,10,10,10])
   ];
+}
+
+function applyDefaultSpecies(){
+  pack.species = [
+    new Species("Human"),    //standard
+    // new Species("Elf"),      //wood loving
+    // new Species("Dwarf"),    //mounting loving
+    // new Species("Lizard"),   //desert loving
+    // new Species("Goliath"),  //cold loving
+  ];
+
+  pack.species.forEach((s, i) => s.id = i);
 }
 
 function showWelcomeMessage() {
@@ -1151,35 +1196,22 @@ function getBiomeId(moisture, temperature, height) {
 function rankCells() {
   console.time('rankCells');
   const cells = pack.cells, f = pack.features;
-  cells.s = new Int16Array(cells.i.length); // cell suitability array
-  cells.pop = new Float32Array(cells.i.length); // cell population array
+  cells.s = [];
+  cells.pop = [];
 
-  const flMean = d3.median(cells.fl.filter(f => f)), flMax = d3.max(cells.fl) + d3.max(cells.conf); // to normalize flux
+  pack.flMean = d3.median(cells.fl.filter(f => f));
+  pack.flMax = d3.max(cells.fl) + d3.max(cells.conf); // to normalize flux
   const areaMean = d3.mean(cells.area); // to adjust population by cell area
 
-  for (const i of cells.i) {
-    let s = +pack.biomes[cells.biome[i]].habitability; // base suitability derived from biome habitability
-    if (!s) continue; // uninhabitable biomes has 0 suitability
-    s += normalize(cells.fl[i] + cells.conf[i], flMean, flMax) * 250; // big rivers and confluences are valued
-    s -= (cells.h[i] - 50) / 5; // low elevation is valued, high is not;
+  for (const s of pack.species){
+    cells.s.push(new Int16Array(cells.i.length)); // cell suitability array
+    cells.pop.push(new Float32Array(cells.i.length)); // cell population array
 
-    if (cells.t[i] === 1) {
-      if (cells.r[i]) s += 15; // estuary is valued
-      const type = f[cells.f[cells.haven[i]]].type;
-      const group = f[cells.f[cells.haven[i]]].group;
-      if (type === "lake") {
-        // lake coast is valued
-        if (group === "freshwater") s += 30;
-        else if (group !== "lava") s += 10;
-      } else {
-        s += 5; // ocean coast is valued
-        if (cells.harbor[i] === 1) s += 20; // safe sea harbor is valued
-      }
+    for (const i of cells.i) {
+      cells.s[s.id][i] = s.getSuitability(i);
+      // cell rural population is suitability adjusted by cell area
+      cells.pop[s.id][i] = cells.s[s.id][i] > 0 ? cells.s[s.id][i] * cells.area[i] / areaMean : 0;
     }
-
-    cells.s[i] = s / 5; // general population rate
-    // cell rural population is suitability adjusted by cell area
-    cells.pop[i] = cells.s[i] > 0 ? cells.s[i] * cells.area[i] / areaMean : 0;
   }
 
   console.timeEnd('rankCells');
@@ -1357,7 +1389,7 @@ function addMarkers(number = 1) {
   }()
 
   void function addBattlefields() {
-    let battlefields = Array.from(cells.i).filter(i => cells.pop[i] > 2 && cells.h[i] < 50 && cells.h[i] > 25);
+    let battlefields = Array.from(cells.i).filter(i => totalPopOfCell(i) > 2 && cells.h[i] < 50 && cells.h[i] > 25);
     let count = battlefields.length < 100 ? 0 : Math.ceil(battlefields.length / 500 * number);
     const era = Names.getCulture(0, 3, 7, "", 0) + " Era";
     if (count) addMarker("battlefield", "⚔", 50, 50, 20);
@@ -1519,7 +1551,7 @@ function addZones(number = 1) {
 
     while (queue.length) {
       const next = queue.dequeue();
-      if (cells.burg[next.e] || cells.pop[next.e]) cellsArray.push(next.e);
+      if (cells.burg[next.e] || totalPopOfCell(next.e)) cellsArray.push(next.e);
       used[next.e] = 1;
 
       cells.c[next.e].forEach(function(e) {
@@ -1554,7 +1586,7 @@ function addZones(number = 1) {
 
     while (queue.length) {
       const next = queue.dequeue();
-      if (cells.burg[next.e] || cells.pop[next.e]) cellsArray.push(next.e);
+      if (cells.burg[next.e] || totalPopOfCell(next.e)) cellsArray.push(next.e);
       used[next.e] = 1;
 
       cells.c[next.e].forEach(function(e) {

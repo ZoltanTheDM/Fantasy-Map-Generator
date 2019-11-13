@@ -70,7 +70,7 @@ function editProvinces() {
       if (!p) continue;
 
       provinces[p].area += cells.area[i];
-      provinces[p].rural += cells.pop[i];
+      provinces[p].rural += totalPopOfCell(i);
       if (!cells.burg[i]) continue;
       provinces[p].urban += burgs[cells.burg[i]].population;
       provinces[p].burgs.push(cells.burg[i]);
@@ -308,12 +308,12 @@ function editProvinces() {
     function applyPopulationChange() {
       const ruralChange = ruralPop.value / rural;
       if (isFinite(ruralChange) && ruralChange !== 1) {
-        cells.forEach(i => pack.cells.pop[i] *= ruralChange);
+        cells.forEach(i => pack.cells.pop.forEach(pop => pop[i] *= ruralChange));
       }
       if (!isFinite(ruralChange) && +ruralPop.value > 0) {
         const points = ruralPop.value / populationRate.value;
         const pop = rn(points / cells.length);
-        cells.forEach(i => pack.cells.pop[i] = pop);
+        cells.forEach(i => pack.cells.pop.forEach(pop => pop[i] = pop));
       }
 
       const urbanChange = urbanPop.value / urban;

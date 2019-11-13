@@ -78,7 +78,7 @@
     const burgs = pack.burgs.filter(b => b.i && !b.removed);
     const sorted = burgs.length > +religionsInput.value
       ? burgs.sort((a, b) => b.population - a.population).map(b => b.cell)
-      : cells.i.filter(i => cells.s[i] > 2).sort((a, b) => cells.s[b] - cells.s[a]);
+      : cells.i.filter(i => totalSutabilityOfCell(i) > 2).sort((a, b) => totalSutabilityOfCell(b) - totalSutabilityOfCell(a));
     const religionsTree = d3.quadtree();
     const spacing = (graphWidth + graphHeight) / 6 / religionsInput.value; // base min distance between towns
     const cultsCount = Math.floor(rand(10, 40) / 100 * religionsInput.value);
@@ -200,7 +200,11 @@
     });
 
     const neutral = cells.i.length / 5000 * 200 * gauss(1, .3, .2, 2, 2) * neutralInput.value; // limit cost for organized religions growth
-    const popCost = d3.max(cells.pop) / 3; // enougth population to spered religion without penalty
+    const popCost = cells.i.reduce((max, index) => {      //Gets the maximum population of all cells
+      const val = totalPopOfCell(index);
+      if (val > max) return val;
+      return max;
+    }, 0) / 3; // enougth population to spered religion without penalty
 
     while (queue.length) {
       const next = queue.dequeue(), n = next.e, p = next.p, r = next.r, c = next.c, s = next.s;
@@ -213,7 +217,7 @@
         const cultureCost = c !== cells.culture[e] ? 10 : 0;
         const stateCost = s !== cells.state[e] ? 10 : 0;
         const biomeCost = cells.road[e] ? 1 : pack.biomes[cells.biome[e]].cost;
-        const populationCost = Math.max(rn(popCost - cells.pop[e]), 0);
+        const populationCost = Math.max(rn(popCost - totalPopOfCell(e)), 0);
         const heightCost = Math.max(cells.h[e], 20) - 20;
         const waterCost = cells.h[e] < 20 ? cells.road[e] ? 50 : 1000 : 0;
         const totalCost = p + (cultureCost + stateCost + biomeCost + populationCost + heightCost + waterCost) / religions[r].expansionism;

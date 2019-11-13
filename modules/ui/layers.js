@@ -421,7 +421,7 @@ function drawPopulation(event) {
   const cells = pack.cells, p = cells.p, burgs = pack.burgs;
   const show = d3.transition().duration(2000).ease(d3.easeSinIn);
 
-  const rural = Array.from(cells.i.filter(i => cells.pop[i] > 0), i => [p[i][0], p[i][1], p[i][1] - cells.pop[i] / 8]);
+  const rural = Array.from(cells.i.filter(i => totalPopOfCell(i) > 0), i => [p[i][0], p[i][1], p[i][1] - totalPopOfCell(i) / 8]);
   population.select("#rural").selectAll("line").data(rural).enter().append("line")
     .attr("x1", d => d[0]).attr("y1", d => d[1])
     .attr("x2", d => d[0]).attr("y2", d => d[1])

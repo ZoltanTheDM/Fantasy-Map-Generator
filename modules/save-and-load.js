@@ -262,7 +262,7 @@ function getMapData() {
     }).join("/");
 
     // round population to save resources
-    const pop = Array.from(pack.cells.pop).map(p => rn(p, 4));
+    const pop = pack.cells.pop.map(pop => pop.map(p => rn(p, 4)));
 
     // data format as below
     const data = [params, options, coords, biomes, notesData, svg_xml,
@@ -938,6 +938,13 @@ function parseLoadedData(data) {
 
         // v 1.22 changed state neighbors from Set object to array
         BurgsAndStates.collectStatistics();
+      }
+
+      if (version < 1.23) {
+        //Adding in species
+        pack.species = [new Species()]; //default to human
+        pack.cells.pop = [pack.cells.pop];
+        pack.cells.s = [pack.cells.s];
       }
 
     }()

@@ -49,7 +49,7 @@ function editCultures() {
       const c = cells.culture[i];
       cultures[c].cells += 1;
       cultures[c].area += cells.area[i];
-      cultures[c].rural += cells.pop[i];
+      cultures[c].rural += totalPopOfCell(i);
       if (cells.burg[i]) cultures[c].urban += pack.burgs[cells.burg[i]].population;
     }
   }
@@ -260,13 +260,13 @@ function editCultures() {
       const ruralChange = ruralPop.value / rural;
       if (isFinite(ruralChange) && ruralChange !== 1) {
         const cells = pack.cells.i.filter(i => pack.cells.culture[i] === culture);
-        cells.forEach(i => pack.cells.pop[i] *= ruralChange);
+        cells.forEach(i => pack.cells.pop.forEach(pop => pop[i] *= ruralChange));
       }
       if (!isFinite(ruralChange) && +ruralPop.value > 0) {
         const points = ruralPop.value / populationRate.value;
         const cells = pack.cells.i.filter(i => pack.cells.culture[i] === culture);
         const pop = rn(points / cells.length);
-        cells.forEach(i => pack.cells.pop[i] = pop);
+        cells.forEach(i => pack.cells.pop.forEach(pop => pop[i] = pop));
       }
 
       const urbanChange = urbanPop.value / urban;

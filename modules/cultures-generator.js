@@ -12,7 +12,7 @@
     cells.culture = new Uint16Array(cells.i.length); // cell cultures
     let count = +culturesInput.value;
 
-    const populated = cells.i.filter(i => cells.s[i]).sort((a, b) => cells.s[b] - cells.s[a]); // cells sorted by population
+    const populated = cells.i.filter(i => totalSutabilityOfCell(i)).sort((a, b) => totalSutabilityOfCell(b) - totalSutabilityOfCell(a)); // cells sorted by population
     if (populated.length < count * 25) {
       count = Math.floor(populated.length / 50);
       if (!count) {
@@ -376,7 +376,7 @@
         if (totalCost > neutral) return;
 
         if (!cost[e] || totalCost < cost[e]) {
-          if (cells.s[e] > 0) cells.culture[e] = c; // assign culture to populated cell
+          if (totalSutabilityOfCell(e) > 0) cells.culture[e] = c; // assign culture to populated cell
           cost[e] = totalCost;
           queue.queue({e, p:totalCost, c});
 

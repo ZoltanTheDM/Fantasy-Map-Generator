@@ -183,13 +183,22 @@ function getRiverInfo(id) {
 
 // get user-friendly (real-world) population value from map data
 function getFriendlyPopulation(i) {
-  const rural = pack.cells.pop[i] * populationRate.value;
-  const urban = pack.cells.burg[i] ? pack.burgs[pack.cells.burg[i]].population * populationRate.value * urbanization.value : 0;  
-  return `${si(rural+urban)} (${si(rural)} rural, urban ${si(urban)})`;
+  const rural = totalPopOfCell(i) * populationRate.value;
+  const urban = pack.cells.burg[i] ? pack.burgs[pack.cells.burg[i]].population * populationRate.value * urbanization.value : 0;
+  if (!rural && !urban) return `No Population`;
+  const breakdown = pack.species.reduce((old_s, specie, val) => {
+    const count = pack.cells.pop[val][i] * populationRate.value;
+    if (count <= 0) return old_s;
+    return old_s + (val > 0 ? " ," : "") + specie.name + " " + si(count);
+  }, "")
+  if (!urban){
+    return `${si(rural)} (${breakdown})`;
+  }
+  return `${si(rural+urban)} (Urban: ${si(urban)}, ${breakdown})`;
 }
 
 function getPopulationTip(i) {
-  const rural = pack.cells.pop[i] * populationRate.value;
+  const rural = totalPopOfCell(i) * populationRate.value;
   const urban = pack.cells.burg[i] ? pack.burgs[pack.cells.burg[i]].population * populationRate.value * urbanization.value : 0;  
   return `Cell population: ${si(rural+urban)}; Rural: ${si(rural)}; Urban: ${si(urban)}`;
 }

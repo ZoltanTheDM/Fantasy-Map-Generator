@@ -98,6 +98,14 @@ function getGridPolygon(i) {
   return grid.cells.v[i].map(v => grid.vertices.p[v]);
 }
 
+function totalPopOfCell(i) {
+  return pack.cells.pop.reduce((old, specie) => specie[i] + old, 0)
+}
+
+function totalSutabilityOfCell(i) {
+  return pack.cells.s.reduce((old, specie) => specie[i] + old, 0)
+}
+
 // mbostock's poissonDiscSampler
 function* poissonDiscSampler(x0, y0, x1, y1, r, k = 3) {
   if (!(x1 >= x0) || !(y1 >= y0) || !(r > 0)) throw new Error;

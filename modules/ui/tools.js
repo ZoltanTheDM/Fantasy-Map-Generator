@@ -84,7 +84,7 @@ function recalculatePopulation() {
     if (!b.i || b.removed) return;
     const i = b.cell;
 
-    b.population = rn(Math.max((pack.cells.s[i] + pack.cells.road[i]) / 8 + b.i / 1000 + i % 100 / 1000, .1), 3);
+    b.population = rn(Math.max((totalSutabilityOfCell(i) + pack.cells.road[i]) / 8 + b.i / 1000 + i % 100 / 1000, .1), 3);
     if (b.capital) b.population = b.population * 1.3; // increase capital population
     if (b.port) b.population = b.population * 1.3; // increase port population
     b.population = rn(b.population * gauss(2,3,.6,20,3), 3);
@@ -100,7 +100,8 @@ function regenerateBurgs() {
   pack.provinces.filter(p => p.i).forEach(p => p.burg = 0); // clear province capitals
   const burgsTree = d3.quadtree();
 
-  const score = new Int16Array(cells.s.map(s => s * Math.random())); // cell score for capitals placement
+  const score = new Int16Array(cells.i.length); // cell score for capitals placement
+  score.forEach((_, i) => cells.s.forEach(suit => score[i] += suit[i] * Math.random()));
   const sorted = cells.i.filter(i => score[i] > 0 && cells.culture[i]).sort((a, b) => score[b] - score[a]); // filtered and sorted array of indexes
   const burgsCount = manorsInput.value == 1000 ? rn(sorted.length / 5 / (grid.points.length / 10000) ** .8) + states.length : +manorsInput.value + states.length;
   const spacing = (graphWidth + graphHeight) / 150 / (burgsCount ** .7 / 66); // base min distance between towns

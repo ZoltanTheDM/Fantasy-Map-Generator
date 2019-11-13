@@ -204,11 +204,15 @@ function editHeightmap() {
     const biome = new Uint8Array(l);
     const conf = new Uint8Array(l);
     const fl = new Uint16Array(l);
-    const pop = new Uint16Array(l);
+    const pop = [];
+    const s = [];
+    for (const x in pack.species){
+      pop.push(new Uint16Array(l));
+      s.push(new Uint16Array(l));
+    }
     const r = new Uint16Array(l);
     const road = new Uint16Array(l);
     const crossroad = new Uint16Array(l);
-    const s = new Uint16Array(l);
     const burg = new Uint16Array(l);
     const state = new Uint16Array(l);
     const province = new Uint16Array(l);
@@ -221,11 +225,13 @@ function editHeightmap() {
       conf[g] = pack.cells.conf[i];
       culture[g] = pack.cells.culture[i];
       fl[g] = pack.cells.fl[i];
-      pop[g] = pack.cells.pop[i];
+      for (const x in pack.species){
+        s[x][g] = pack.cells.s[x][i];
+        pop[x][g] = pack.cells.pop[x][i];
+      }
       r[g] = pack.cells.r[i];
       road[g] = pack.cells.road[i];
       crossroad[g] = pack.cells.crossroad[i];
-      s[g] = pack.cells.s[i];
       state[g] = pack.cells.state[i];
       province[g] = pack.cells.province[i];
       burg[g] = pack.cells.burg[i];
@@ -270,10 +276,14 @@ function editHeightmap() {
 
     // assign saved pack data from grid back to pack
     const n = pack.cells.i.length;
-    pack.cells.pop = new Float32Array(n);
     pack.cells.road = new Uint16Array(n);
     pack.cells.crossroad = new Uint16Array(n);
-    pack.cells.s = new Uint16Array(n);
+    pack.cells.pop = [];
+    pack.cells.s = [];
+    for (const i in pack.species){
+      pack.cells.pop.push(new Float32Array(n));
+      pack.cells.s.push(new Uint16Array(n));
+    }
     pack.cells.burg = new Uint16Array(n);
     pack.cells.state = new Uint16Array(n);
     pack.cells.province = new Uint16Array(n);
@@ -298,10 +308,12 @@ function editHeightmap() {
 
       if (!land) continue;
       pack.cells.culture[i] = culture[g];
-      pack.cells.pop[i] = pop[g];
       pack.cells.road[i] = road[g];
       pack.cells.crossroad[i] = crossroad[g];
-      pack.cells.s[i] = s[g];
+      for (const x in pack.species){
+        pack.cells.pop[x][i] = pop[g];
+        pack.cells.s[x][i] = s[g];
+      }
       pack.cells.state[i] = state[g];
       pack.cells.province[i] = province[g];
       pack.cells.religion[i] = religion[g];
