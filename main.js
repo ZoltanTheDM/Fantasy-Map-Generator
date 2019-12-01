@@ -41,6 +41,7 @@ let cults = viewbox.append("g").attr("id", "cults");
 let regions = viewbox.append("g").attr("id", "regions");
 let statesBody = regions.append("g").attr("id", "statesBody");
 let statesHalo = regions.append("g").attr("id", "statesHalo");
+let waterBody = regions.append("g").attr("id", "waterBody");
 let provs = viewbox.append("g").attr("id", "provs");
 let zones = viewbox.append("g").attr("id", "zones").style("display", "none");
 let borders = viewbox.append("g").attr("id", "borders");
@@ -900,7 +901,11 @@ function drawCoastline() {
     if (!startFromEdge && cells.t[i] !== -1 && cells.t[i] !== 1) continue; // non-edge cell
     const f = cells.f[i];
     if (used[f]) continue; // already connected
-    if (features[f].type === "ocean") continue; // ocean cell
+    if (features[f].type === "ocean") {
+      features[f].area = cells.i.reduce((area, cellid) => cells.f[cellid] == f ? area + cells.area[cellid] : area, 0);
+      used[f] = 1;
+      continue; // ocean cell
+    }
 
     const type = features[f].type === "lake" ? 1 : -1; // type value to search for
     const start = findStart(i, type);
