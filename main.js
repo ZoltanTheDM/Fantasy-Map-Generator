@@ -523,6 +523,7 @@ function generate() {
     BurgsAndStates.drawStateLabels();
 
     Rivers.specify();
+    Waterbodies.specify();
     addMarkers();
     addZones();
     Names.getMapName();
