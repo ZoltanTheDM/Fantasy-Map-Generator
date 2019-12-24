@@ -41,7 +41,6 @@ let cults = viewbox.append("g").attr("id", "cults");
 let regions = viewbox.append("g").attr("id", "regions");
 let statesBody = regions.append("g").attr("id", "statesBody");
 let statesHalo = regions.append("g").attr("id", "statesHalo");
-let waterBody = regions.append("g").attr("id", "waterBody");
 let provs = viewbox.append("g").attr("id", "provs");
 let zones = viewbox.append("g").attr("id", "zones").style("display", "none");
 let borders = viewbox.append("g").attr("id", "borders");

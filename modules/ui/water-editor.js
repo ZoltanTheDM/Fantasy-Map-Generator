@@ -58,18 +58,22 @@ function overviewWaterbodies(){
   }
 
   function waterHighlightOn(event){
-    // const water = +event.target.dataset.id;
-    // if (customization || !water) return;
-    // const path = waterBody.select("#water"+water).attr("d");
-    // debug.append("path").attr("class", "highlight").attr("d", path)
-    //   .attr("fill", "none").attr("stroke", "red").attr("stroke-width", 1).attr("opacity", 1)
-    //   .attr("filter", "url(#blur1)").call(transition);
+    const water = +event.target.dataset.id;
+    if (customization || !water) return;
+    const path = lakes.select("#lake_"+water).attr("d");
+    debug.append("path").attr("class", "highlight").attr("d", path)
+      .attr("fill", "none").attr("stroke", "red").attr("stroke-width", 1).attr("opacity", 1)
+      .attr("filter", "url(#blur1)");
+  }
+
+  function removePath(path) {
+    path.transition().duration(1000).attr("opacity", 0).remove();
   }
 
   function waterHighlightOff(){
-    // debug.selectAll(".highlight").each(function(el) {
-    //   d3.select(this).call(removePath);
-    // });
+    debug.selectAll(".highlight").each(function(el) {
+      d3.select(this).call(removePath);
+    });
   }
 
 

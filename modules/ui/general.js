@@ -340,6 +340,7 @@ document.addEventListener("keyup", event => {
   else if (shift && key === 84) overviewBurgs(); // Shift + "T" to open Burgs overview
   else if (shift && key === 86) overviewRivers(); // Shift + "V" to open Rivers overview
   else if (shift && key === 69) viewCellDetails(); // Shift + "E" to open Cell Details
+  else if (shift && key === 87) overviewWaterbodies(); // Shift + "W" to open Waterbodies overview
 
   else if (shift && key === 49) toggleAddBurg(); // Shift + "1" to click to add Burg
   else if (shift && key === 50) toggleAddLabel(); // Shift + "2" to click to add Label
