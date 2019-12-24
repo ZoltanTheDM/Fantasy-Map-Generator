@@ -41,6 +41,7 @@ function overviewWaterbodies(){
       el.addEventListener("mouseenter", ev => waterHighlightOn(ev));
       el.addEventListener("mouseleave", ev => waterHighlightOff(ev));
     });
+    body.querySelectorAll("div > span.icon-dot-circled").forEach(el => el.addEventListener("click", zoomToLake));
 
     WaterbodiesFooterNumber.innerHTML = waterbodies.length;
     WaterbodiesFooterCells.innerHTML = totalCells;
@@ -60,7 +61,6 @@ function overviewWaterbodies(){
   function waterHighlightOn(event){
     const water = +event.target.dataset.id;
     if (customization || !water) return;
-    console.log(water);
 
     var path_list;
     if (pack.features[water].type == "lake"){
@@ -90,6 +90,12 @@ function overviewWaterbodies(){
     debug.selectAll(".highlight").each(function(el) {
       d3.select(this).call(removePath);
     });
+  }
+
+  function zoomToLake() {
+    const w = +this.parentNode.dataset.id;
+    const lake = lakes.select("#lake_"+w).node();
+    highlightElement(lake);
   }
 
 
