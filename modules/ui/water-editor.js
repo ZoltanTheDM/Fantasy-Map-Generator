@@ -24,11 +24,11 @@ function overviewWaterbodies(){
     for (const water of waterbodies){
       lines += `<div class="states water" data-id=${water.i} data-name="${water.name}" data-type="${water.type}" data-group="${water.group}" data-cells="${water.cells}" data-area="${water.area}" >
         <span data-tip="Click to focus on waterbody" class="icon-dot-circled pointer"></span>
-        <input data-tip="Water body proper name. Click to change. Ctrl + click to regenerate" class="riverName" value="${water.name}" autocorrect="off" spellcheck="false">
-        <input data-tip="Water body type name." class="riverType" value="${water.type}">
-        <input data-tip="Water body group name." class="riverType" value="${water.group}">
-        <input data-tip="Water body number of cells." class="riverType" value="${water.cells}">
-        <input data-tip="Water body area." class="riverType" value="${si(water.area) + unit}">
+        <input data-tip="Water body proper name. Click to change. Ctrl + click to regenerate" class="waterName" value="${water.name}" autocorrect="off" spellcheck="false">
+        <input data-tip="Water body type name." class="waterType" value="${water.type}">
+        <input data-tip="Water body group name." class="waterGroup" value="${water.group}">
+        <input data-tip="Water body number of cells." class="waterCells" value="${water.cells}">
+        <input data-tip="Water body area." class="waterArea" value="${si(water.area) + unit}">
       </div>`
       totalArea += water.area;
       totalCells += water.cells;
