@@ -60,10 +60,26 @@ function overviewWaterbodies(){
   function waterHighlightOn(event){
     const water = +event.target.dataset.id;
     if (customization || !water) return;
-    const path = lakes.select("#lake_"+water).attr("d");
-    debug.append("path").attr("class", "highlight").attr("d", path)
-      .attr("fill", "none").attr("stroke", "red").attr("stroke-width", 1).attr("opacity", 1)
-      .attr("filter", "url(#blur1)");
+    console.log(water);
+
+    var path_list;
+    if (pack.features[water].type == "lake"){
+      path_list = [lakes.select("#lake_"+water).attr("d")];
+    }
+    else if (pack.features[water].type == "ocean"){
+      path_list = [];
+      defs.select("#water").selectAll("path").each(function(d, i, a){
+        //TODO is there a better way of getting this value.
+        //this seems rather unsafe
+        path_list.push(a[i].attributes["d"].nodeValue);
+      });
+    }
+
+    path_list.forEach(path => {
+      debug.append("path").attr("class", "highlight").attr("d", path)
+        .attr("fill", "none").attr("stroke", "red").attr("stroke-width", 1).attr("opacity", 1)
+        .attr("filter", "url(#blur1)");
+    });
   }
 
   function removePath(path) {
