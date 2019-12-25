@@ -439,6 +439,15 @@ function rw(object) {
   return array[Math.floor(Math.random() * array.length)];
 }
 
+function rw2(object) {
+  const total = Object.values(object).reduce((t, n) => t + n);
+  var sum=0, r=Math.random() * total;
+  for (var i in object) {
+    sum += object[i];
+    if (r <= sum) return i;
+  }
+}
+
 // return value in range [0, 100] (height range)
 function lim(v) {
   return Math.max(Math.min(v, 100), 0);
