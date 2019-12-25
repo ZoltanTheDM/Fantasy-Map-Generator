@@ -38,6 +38,8 @@ function overviewWaterbodies(){
 
     body.querySelectorAll("div.water").forEach(el => {
       el.addEventListener("click", selectWaterOnLineClick);
+    body.querySelectorAll("div > input.waterName").forEach(el => el.addEventListener("input", changeWaterName));
+    body.querySelectorAll("div > input.waterName").forEach(el => el.addEventListener("click", regenerateWaterName));
       el.addEventListener("mouseenter", ev => waterHighlightOn(ev));
       el.addEventListener("mouseleave", ev => waterHighlightOff(ev));
     });
@@ -53,6 +55,20 @@ function overviewWaterbodies(){
   function closeWaterOverview() {
     debug.select("#waterbodyOverview").remove();
     modules.waterbodies = false;
+  }
+
+  function changeWaterName() {
+    if (this.value == "") tip("Please provide a proper name", false, "error");
+    const water = +this.parentNode.dataset.id;
+    pack.features.find(w => w.i === water).name = this.value;
+    this.parentNode.dataset.name = this.value;
+  }
+
+  function regenerateWaterName(event) {
+    if (!event.ctrlKey) return;
+    const water = +this.parentNode.dataset.id;
+    const w = pack.features.find(w => w.i === water);
+    w.name = this.value = this.parentNode.dataset.name = Waterbodies.generateNameForLake(w);
   }
 
   function selectWaterOnLineClick(){

@@ -102,7 +102,7 @@
         return Object.entries(obj).length === 0 && obj.constructor === Object != 0;
     }
 
-    return {specify};
+    return {specify, generateNameForLake};
 })));
 
 
