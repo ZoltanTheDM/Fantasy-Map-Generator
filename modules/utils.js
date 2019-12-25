@@ -441,8 +441,9 @@ function rw(object) {
 
 function rw2(object) {
   const total = Object.values(object).reduce((t, n) => t + n);
-  var sum=0, r=Math.random() * total;
-  for (var i in object) {
+  let sum = 0
+  const r = Math.random() * total;
+  for (const i in object) {
     sum += object[i];
     if (r <= sum) return i;
   }

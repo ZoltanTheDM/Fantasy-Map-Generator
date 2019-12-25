@@ -26,7 +26,7 @@
         });
 
         //get cells that are neighbors
-        var neighbor_cells = [];
+        const neighbor_cells = [];
         lake_cells.forEach((c)=>{
             pack.cells.c[c].forEach((n)=>{
                 if (!neighbor_cells.includes(n) && !lake_cells.includes(n)){
@@ -35,11 +35,11 @@
             });
         });
 
-        var neighbor_burgs = {};
-        var neighbor_cultures = {};
-        var possible = {};
-        var burgs_sum = 0;
-        var culture_sum = 0;
+        const neighbor_burgs = {};
+        const neighbor_cultures = {};
+        const possible = {};
+        let burgs_sum = 0;
+        let culture_sum = 0;
 
         //get a list of sources for random names for lake
         neighbor_cells.forEach((c)=>{
@@ -48,7 +48,7 @@
             if (b != 0){
                 //possiblity of being named after a berg is based on
                 //its population (and other factors?)
-                var value = pack.burgs[b].population;
+                let value = pack.burgs[b].population;
                 neighbor_burgs[b] = value;
                 burgs_sum += value;
             }

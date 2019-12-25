@@ -25,10 +25,10 @@ function overviewWaterbodies(){
       lines += `<div class="states water" data-id=${water.i} data-name="${water.name}" data-type="${water.type}" data-group="${water.group}" data-cells="${water.cells}" data-area="${water.area}" >
         <span data-tip="Click to focus on waterbody" class="icon-dot-circled pointer"></span>
         <input data-tip="Water body proper name. Click to change. Ctrl + click to regenerate" class="waterName" value="${water.name}" autocorrect="off" spellcheck="false">
-        <input data-tip="Water body type name." class="waterType" value="${water.type}">
-        <input data-tip="Water body group name." class="waterGroup" value="${water.group}">
-        <input data-tip="Water body number of cells." class="waterCells" value="${water.cells}">
-        <input data-tip="Water body area." class="waterArea" value="${si(water.area) + unit}">
+        <div data-tip="Type Name" class="biomeArea">${water.type}</div>
+        <div data-tip="Group Name" class="biomeArea">${water.group}</div>
+        <div data-tip="Number of cells." class="biomeArea">${water.cells}</div>
+        <div data-tip="Area" class="biomeArea">${si(water.area) + unit}</div>
       </div>`
       totalArea += water.area;
       totalCells += water.cells;
@@ -37,7 +37,6 @@ function overviewWaterbodies(){
     body.innerHTML = lines;
 
     body.querySelectorAll("div.water").forEach(el => {
-      el.addEventListener("click", selectWaterOnLineClick);
     body.querySelectorAll("div > input.waterName").forEach(el => el.addEventListener("input", changeWaterName));
     body.querySelectorAll("div > input.waterName").forEach(el => el.addEventListener("click", regenerateWaterName));
       el.addEventListener("mouseenter", ev => waterHighlightOn(ev));
@@ -71,19 +70,15 @@ function overviewWaterbodies(){
     w.name = this.value = this.parentNode.dataset.name = Waterbodies.generateNameForLake(w);
   }
 
-  function selectWaterOnLineClick(){
-  }
-
   function waterHighlightOn(event){
     const water = +event.target.dataset.id;
     if (customization || !water) return;
 
-    var path_list;
+    const path_list = [];
     if (pack.features[water].type == "lake"){
-      path_list = [lakes.select("#lake_"+water).attr("d")];
+      path_list.push(lakes.select("#lake_"+water).attr("d"));
     }
     else if (pack.features[water].type == "ocean"){
-      path_list = [];
       defs.select("#water").selectAll("path").each(function(d, i, a){
         //TODO is there a better way of getting this value.
         //this seems rather unsafe
