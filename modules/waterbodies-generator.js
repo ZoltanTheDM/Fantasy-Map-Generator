@@ -5,8 +5,6 @@
 }(this, (function () {'use strict';
     const specify = function () {
         const lakes = pack.features.filter((f, i) => i && !f.land && f.group != "ocean");
-        console.log(pack);
-        console.log(pack.cells);
 
         //generate names for lakes
         lakes.forEach((lake) => {
