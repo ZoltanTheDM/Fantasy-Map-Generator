@@ -79,11 +79,11 @@ function overviewWaterbodies(){
       path_list.push(lakes.select("#lake_"+water).attr("d"));
     }
     else if (pack.features[water].type == "ocean"){
-      defs.select("#water").selectAll("path").each(function(d, i, a){
+      // defs.select("#water").selectAll("path").each(function(d, i, a){
         //TODO is there a better way of getting this value.
         //this seems rather unsafe
-        path_list.push(a[i].attributes["d"].nodeValue);
-      });
+      //   path_list.push(a[i].attributes["d"].nodeValue);
+      // });
     }
 
     path_list.forEach(path => {
